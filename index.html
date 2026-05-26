@@ -203,6 +203,7 @@
 
 <script>
   const BOOK_MAP = {
+    // 구약
     '창세기':'창','출애굽기':'출','레위기':'레','민수기':'민','신명기':'신',
     '여호수아':'수','사사기':'삿','룻기':'룻',
     '사무엘상':'삼상','사무엘하':'삼하',
@@ -214,6 +215,7 @@
     '호세아':'호','요엘':'욜','아모스':'암','오바댜':'옵','요나':'욘',
     '미가':'미','나훔':'나','하박국':'합','스바냐':'습','학개':'학',
     '스가랴':'슥','말라기':'말',
+    // 신약
     '마태복음':'마','마가복음':'막','누가복음':'눅','요한복음':'요',
     '사도행전':'행','로마서':'롬',
     '고린도전서':'고전','고린도후서':'고후',
@@ -223,7 +225,30 @@
     '디도서':'딛','빌레몬서':'몬','히브리서':'히','야고보서':'약',
     '베드로전서':'벧전','베드로후서':'벧후',
     '요한일서':'요일','요한이서':'요이','요한삼서':'요삼',
-    '유다서':'유','요한계시록':'계','계시록':'계'
+    '유다서':'유','요한계시록':'계','계시록':'계',
+    // 발음 유사 별칭
+    '갈라지아서':'갈','갈라디야서':'갈',
+    '필립보서':'빌','필립포서':'빌',
+    '필레몬서':'몬','빌레몬':'몬',
+    '골로세서':'골','골로쌔서':'골',
+    '데살로니까전서':'살전','데살로니까후서':'살후',
+    '데살로니카전서':'살전','데살로니카후서':'살후',
+    '디모데이전서':'딤전','디모데이후서':'딤후',
+    '에스켈':'겔','이스겔':'겔',
+    '오바다':'옵','오바디아':'옵',
+    '하바국':'합','하박꾹':'합',
+    '스바니야':'습',
+    '히부리서':'히','히브루서':'히',
+    '야고버서':'약',
+    '베드로일서':'벧전','베드로이서':'벧후',
+    '요한계시':'계','계시록':'계',
+    '사무엘일서':'삼상','사무엘이서':'삼하',
+    '열왕기일서':'왕상','열왕기이서':'왕하',
+    '역대기상':'대상','역대기하':'대하',
+    '여호수와':'수','여호수아기':'수',
+    '이사이야':'사','이사야서':'사',
+    '예레미아':'렘','예레미야서':'렘',
+    '호쎄아':'호','아모쓰':'암'
   };
 
   const ABBREV_TO_FULL = {};
@@ -318,20 +343,53 @@
     recognition.start();
   }
 
+  function levenshtein(a, b) {
+    const dp = Array.from({length: a.length + 1}, (_, i) =>
+      Array.from({length: b.length + 1}, (_, j) => i === 0 ? j : j === 0 ? i : 0)
+    );
+    for (let i = 1; i <= a.length; i++)
+      for (let j = 1; j <= b.length; j++)
+        dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1]
+          : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+    return dp[a.length][b.length];
+  }
+
+  function findBook(text) {
+    const books = Object.keys(BOOK_MAP).sort((a, b) => b.length - a.length);
+
+    // 1차: 완전 포함 매칭
+    for (const book of books) {
+      if (text.includes(book)) return { abbrev: BOOK_MAP[book], matched: book, fuzzy: false };
+    }
+
+    // 2차: 숫자·장·절 제거 후 남은 텍스트로 유사도 비교
+    const stripped = text.replace(/\d+\s*[장편절]/g, '').replace(/\s+/g, '').trim();
+    if (!stripped) return null;
+
+    let best = null, bestDist = Infinity;
+    for (const book of books) {
+      // 앞부분 부분 비교 (긴 책 이름은 앞 글자만 말해도 매칭)
+      const sub = book.slice(0, stripped.length);
+      const dist = Math.min(levenshtein(stripped, book), levenshtein(stripped, sub));
+      if (dist < bestDist) { bestDist = dist; best = book; }
+    }
+
+    // 거리 허용 범위: 입력 길이의 40% 이하
+    const threshold = Math.max(1, Math.floor(stripped.length * 0.4));
+    if (bestDist <= threshold) return { abbrev: BOOK_MAP[best], matched: best, fuzzy: true };
+    return null;
+  }
+
   function searchVerse(text) {
     text = text || document.getElementById('textInput').value.trim();
     if (!text) return;
 
     if (!bibleKeys.length) { setStatus('데이터 로딩 중입니다. 잠시 후 다시 시도해주세요.', 'error'); return; }
 
-    // Match book name (longest first to avoid partial matches)
-    const books = Object.keys(BOOK_MAP).sort((a, b) => b.length - a.length);
-    let abbrev = null;
-    for (const book of books) {
-      if (text.includes(book)) { abbrev = BOOK_MAP[book]; break; }
-    }
+    const bookResult = findBook(text);
+    if (!bookResult) { setStatus('"' + text + '"에서 책 이름을 찾지 못했습니다.', 'error'); return; }
 
-    if (!abbrev) { setStatus('"' + text + '"에서 책 이름을 찾지 못했습니다.', 'error'); return; }
+    const { abbrev, matched, fuzzy } = bookResult;
 
     const chMatch = text.match(/(\d+)\s*[장편]/);
     const vsMatch = text.match(/(\d+)\s*절/);
@@ -345,7 +403,9 @@
 
     currentStart = idx;
     renderVerses(idx, false);
-    setStatus((ABBREV_TO_FULL[abbrev] || abbrev) + ' ' + chMatch[1] + '장 ' + vsMatch[1] + '절부터 표시합니다.', 'success');
+    const label = ABBREV_TO_FULL[abbrev] || matched;
+    const fuzzyNote = fuzzy ? ' (유사 검색)' : '';
+    setStatus(label + ' ' + chMatch[1] + '장 ' + vsMatch[1] + '절부터 표시합니다.' + fuzzyNote, 'success');
   }
 
   function renderVerses(startIdx, append) {
