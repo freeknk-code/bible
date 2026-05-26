@@ -234,6 +234,21 @@
 
   let isListening = false;
   let recognition = null;
+  let micReady = false;
+
+  // Pre-request mic permission so Chrome doesn't ask every time
+  function ensureMicPermission(callback) {
+    if (micReady) { callback(); return; }
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        stream.getTracks().forEach(t => t.stop());
+        micReady = true;
+        callback();
+      })
+      .catch(() => {
+        setStatus('마이크 권한이 거부됐습니다. 브라우저 설정에서 허용해주세요.', 'error');
+      });
+  }
 
   // Load bible.json
   fetch('bible.json')
@@ -257,6 +272,12 @@
 
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { setStatus('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome을 사용해주세요.', 'error'); return; }
+
+    ensureMicPermission(startRecognition);
+  }
+
+  function startRecognition() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     recognition = new SR();
     recognition.lang = 'ko-KR';
