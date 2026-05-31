@@ -172,6 +172,44 @@
     .empty-state .icon { font-size: 3rem; margin-bottom: 16px; }
     .empty-state p { font-size: 0.95rem; line-height: 1.7; }
     .empty-state small { font-size: 0.82rem; color: #30363d; }
+
+    .verse-ref {
+      font-size: 0.78rem;
+      color: #f0a500;
+      font-weight: bold;
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .copy-btn {
+      float: right;
+      background: none;
+      border: 1px solid #30363d;
+      color: #8b949e;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      margin-left: 8px;
+      line-height: 1.6;
+    }
+    .copy-btn:active { background: #30363d; }
+    .copy-btn.copied { color: #3fb950; border-color: #3fb950; }
+
+    mark {
+      background: rgba(240, 165, 0, 0.3);
+      color: inherit;
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+
+    .result-count {
+      padding: 6px 16px;
+      font-size: 0.8rem;
+      color: #8b949e;
+      background: #0d1117;
+      border-bottom: 1px solid #1c2128;
+    }
   </style>
 </head>
 <body>
@@ -182,7 +220,7 @@
 
 <div class="search-bar">
   <button id="micBtn" onclick="toggleListening()" title="음성 입력">🎤</button>
-  <input id="textInput" type="text" placeholder="예: 갈라디아서 5장 1절" onkeydown="if(event.key==='Enter')searchVerse()">
+  <input id="textInput" type="text" placeholder="구절: 갈라디아서 5장 1절 / 키워드: 태초에 하나님이" onkeydown="if(event.key==='Enter')searchVerse()">
   <button id="searchBtn" onclick="searchVerse()">이동</button>
 </div>
 
@@ -402,11 +440,100 @@
     return null;
   }
 
+  function highlightWords(text, words) {
+    let result = text;
+    words.forEach(w => {
+      if (!w) return;
+      result = result.split(w).join('<mark>' + w + '</mark>');
+    });
+    return result;
+  }
+
+  function makeCopyBtn(key, verseText) {
+    const m = key.match(/^([가-힣]+)(\d+):(\d+)$/);
+    if (!m) return document.createElement('span');
+    const [, abbr, ch, vs] = m;
+    const ref = (ABBREV_TO_FULL[abbr] || abbr) + ' ' + ch + '장 ' + vs + '절';
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = '복사';
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(ref + '\n' + verseText.trim()).then(() => {
+        btn.textContent = '✓';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = '복사'; btn.classList.remove('copied'); }, 2000);
+      });
+    };
+    return btn;
+  }
+
+  function searchKeyword(words) {
+    if (!bibleKeys.length) { setStatus('데이터 로딩 중입니다.', 'error'); return; }
+    setStatus('검색 중...');
+
+    setTimeout(() => {
+      const results = bibleKeys.filter(key =>
+        words.every(w => bibleData[key].includes(w))
+      );
+
+      if (!results.length) {
+        setStatus('"' + words.join(' ') + '" 포함된 구절이 없습니다.', 'error');
+        document.getElementById('versesContainer').innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>검색 결과가 없습니다</p></div>';
+        return;
+      }
+
+      const container = document.getElementById('versesContainer');
+      container.innerHTML = '';
+      container.scrollTop = 0;
+
+      const countDiv = document.createElement('div');
+      countDiv.className = 'result-count';
+      countDiv.textContent = results.length + '개 구절 발견';
+      container.appendChild(countDiv);
+
+      results.forEach(key => {
+        const verseText = bibleData[key];
+        const m = key.match(/^([가-힣]+)(\d+):(\d+)$/);
+        if (!m) return;
+        const [, abbr, ch, vs] = m;
+
+        const div = document.createElement('div');
+        div.className = 'verse-block';
+
+        const copyBtn = makeCopyBtn(key, verseText);
+        div.appendChild(copyBtn);
+
+        const ref = document.createElement('span');
+        ref.className = 'verse-ref';
+        ref.textContent = (ABBREV_TO_FULL[abbr] || abbr) + ' ' + ch + '장 ' + vs + '절';
+        div.appendChild(ref);
+
+        const content = document.createElement('span');
+        content.innerHTML = highlightWords(verseText, words);
+        div.appendChild(content);
+
+        container.appendChild(div);
+      });
+
+      document.getElementById('loadMoreBtn').style.display = 'none';
+      setStatus(results.length + '개 구절을 찾았습니다.', 'success');
+    }, 10);
+  }
+
   function searchVerse(text) {
     text = text || document.getElementById('textInput').value.trim();
     if (!text) return;
 
     if (!bibleKeys.length) { setStatus('데이터 로딩 중입니다. 잠시 후 다시 시도해주세요.', 'error'); return; }
+
+    // 장/절 패턴 없으면 키워드 검색
+    const hasVerseRef = /\d+\s*[장편]/.test(text) && /\d+\s*절/.test(text);
+    if (!hasVerseRef) {
+      const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+      searchKeyword(words);
+      return;
+    }
 
     const bookResult = findBook(text);
     if (!bookResult) { setStatus('"' + text + '"에서 책 이름을 찾지 못했습니다.', 'error'); return; }
@@ -458,6 +585,9 @@
 
       const div = document.createElement('div');
       div.className = 'verse-block' + (i === currentStart && !append ? ' highlight' : '');
+
+      const copyBtn = makeCopyBtn(key, text);
+      div.appendChild(copyBtn);
 
       const num = document.createElement('span');
       num.className = 'verse-num';
