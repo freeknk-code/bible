@@ -440,6 +440,28 @@
     return null;
   }
 
+  const KO_SUFFIXES = [
+    '에서부터','으로부터','에게서','으로서','로부터','한테서',
+    '에서','에게','한테','으로','로서','부터','까지','마다','조차',
+    '이라도','이나마','와의','과의','이랑','랑','이라','라',
+    '에도','의','와','과','에','도','만','은','는','이','가','을','를',
+    '하시니라','하시니','하셨다','하였다','하였으며','하였고','하였으니',
+    '하는','하고','하여','하며','하지','하면','하니','하다','하여서',
+    '되시는','되는','되고','되며','됩니다','되었','됐','된',
+    '있는','없는','있고','없고','이시는','이신','하신','하실',
+    '스럽','다운','스러운','이다','이고','이며','인데','이면',
+    '는다','는지','인지','시니라','니라'
+  ];
+
+  function koreanStem(word) {
+    for (const s of KO_SUFFIXES) {
+      if (word.endsWith(s) && word.length - s.length >= 1) {
+        return word.slice(0, word.length - s.length);
+      }
+    }
+    return word;
+  }
+
   function highlightWords(text, words) {
     let result = text;
     words.forEach(w => {
@@ -473,12 +495,16 @@
     setStatus('검색 중...');
 
     setTimeout(() => {
+      // 조사/어미 제거 후 빈 문자열 제거
+      const stems = words.map(koreanStem).filter(w => w.length >= 1);
+      if (!stems.length) { setStatus('검색어를 인식하지 못했습니다.', 'error'); return; }
+
       const results = bibleKeys.filter(key =>
-        words.every(w => bibleData[key].includes(w))
+        stems.every(w => bibleData[key].includes(w))
       );
 
       if (!results.length) {
-        setStatus('"' + words.join(' ') + '" 포함된 구절이 없습니다.', 'error');
+        setStatus('"' + stems.join(' ') + '" 포함된 구절이 없습니다.', 'error');
         document.getElementById('versesContainer').innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>검색 결과가 없습니다</p></div>';
         return;
       }
@@ -510,7 +536,7 @@
         div.appendChild(ref);
 
         const content = document.createElement('span');
-        content.innerHTML = highlightWords(verseText, words);
+        content.innerHTML = highlightWords(verseText, stems);
         div.appendChild(content);
 
         container.appendChild(div);
