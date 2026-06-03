@@ -897,7 +897,7 @@
       container.scrollTop = 0;
       let found = 0;
       locs.forEach(r => {
-        const bookResult = { abbrev: r.book, matched: r.book };
+        const bookResult = findBook(r.book) || { abbrev: r.book, matched: r.book };
         const idx = tryVerseKey(bookResult, r.chapter, r.verse);
         if (idx !== -1) {
           if (found === 0) currentStart = idx;
