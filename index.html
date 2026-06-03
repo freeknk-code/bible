@@ -771,11 +771,11 @@
 검색어: "${query}"
 
 규칙:
-1. 특정 인물/비유/사건/설교에 관한 질문이면 → 가장 관련 높은 성경 위치(book/chapter/verse) 반환. 예) 탕자의 비유→눅15:11, 산상수훈→마5:1, 므두셀라의 나이→창5:27, 노아 홍수→창6:9, 다윗과 골리앗→삼상17:1
+1. 특정 인물/비유/사건/설교에 관한 질문이면 → results 배열에 관련 성경 위치 모두 반환 (여러 복음서에 나오면 다 포함). 예) 오병이어→[마14:13,막6:30,눅9:10,요6:1], 탕자의 비유→[눅15:11], 산상수훈→[마5:1], 므두셀라의 나이→[창5:27]
 2. 키워드 검색이면 → keywords 배열에 성경 본문에 실제 나올 법한 핵심 명사만 (조사/동사 제거, 2자 이상, 인명은 그대로)
 3. book 약어: 창/출/레/민/신/수/삿/룻/삼상/삼하/왕상/왕하/대상/대하/스/느/에/욥/시/잠/전/아/사/렘/애/겔/단/호/욜/암/옵/욘/미/나/합/습/학/슥/말/마/막/눅/요/행/롬/고전/고후/갈/엡/빌/골/살전/살후/딤전/딤후/딛/몬/히/약/벧전/벧후/요일/요이/요삼/유/계
 
-{"keywords":[],"book":null,"chapter":null,"verse":null}`;
+{"keywords":[],"results":[]}`;
     try {
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${key}`,
@@ -813,7 +813,6 @@
     if (!bibleKeys.length) { setStatus('데이터 로딩 중입니다.', 'error'); return; }
 
     text = convertKoreanNumbers(text);
-    document.getElementById('textInput').value = text;
 
     // 1. 장/절 형식: "갈 5장 1절" / 장만 있으면 1절 기본값
     const hasJang = /[일이삼사오육칠팔구백십\d]+\s*[장편]/.test(text);
@@ -821,7 +820,6 @@
       text = text.replace(/([일이삼사오육칠팔구백십]+)\s*([장편절])/g, (m, num, suf) => {
         const n = koToNum(num); return n > 0 ? n + suf : m;
       });
-      document.getElementById('textInput').value = text;
       const bookResult = findBook(text);
       if (bookResult) {
         const chM = text.match(/(\d+)\s*[장편]/);
@@ -868,6 +866,7 @@
     renderVerses(idx, false);
     const label = ABBREV_TO_FULL[bookResult.abbrev] || bookResult.matched;
     setStatus(label + ' ' + ch + '장 ' + vs + '절부터 표시합니다.', 'success');
+    document.getElementById('textInput').value = '';
   }
 
   function searchKeywordDirect(text) {
@@ -887,10 +886,25 @@
     setStatus('AI 분석 중...⏳');
     const result = await searchWithGemini(text);
     if (result === null) return;
-    if (result.book && result.chapter && result.verse) {
-      const bookResult = { abbrev: result.book, matched: result.book };
-      const idx = tryVerseKey(bookResult, result.chapter, result.verse);
-      if (idx !== -1) { showVerse(idx, bookResult, result.chapter, result.verse); return; }
+    if (result.results && result.results.length > 0) {
+      const container = document.getElementById('versesContainer');
+      container.innerHTML = '';
+      container.scrollTop = 0;
+      let found = 0;
+      result.results.forEach(r => {
+        const bookResult = { abbrev: r.book, matched: r.book };
+        const idx = tryVerseKey(bookResult, r.chapter, r.verse);
+        if (idx !== -1) {
+          if (found === 0) currentStart = idx;
+          renderVerses(idx, found > 0);
+          found++;
+        }
+      });
+      if (found > 0) {
+        setStatus(`AI 검색 결과 ${found}곳을 찾았습니다.`, 'success');
+        document.getElementById('textInput').value = '';
+        return;
+      }
     }
     if (result.keywords && result.keywords.length > 0) {
       searchKeyword(result.keywords, true);
