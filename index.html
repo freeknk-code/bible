@@ -241,7 +241,7 @@
 
 <div class="search-bar">
   <button id="micBtn" onclick="toggleListening()" title="음성 입력">🎤</button>
-  <input id="textInput" type="text" placeholder="구절: 갈라디아서 5장 1절 / 키워드: 태초에 하나님이" onkeydown="if(event.key==='Enter')searchVerse()">
+  <input id="textInput" type="text" placeholder="갈 5장 1절 / 창 1장 1절 / 태초에 하나님이" onkeydown="if(event.key==='Enter')searchVerse()">
   <button id="searchBtn" onclick="searchVerse()">이동</button>
 </div>
 
@@ -365,6 +365,10 @@
 
   function clearCopied() {
     copiedVerses = [];
+    document.querySelectorAll('.copy-btn.copied').forEach(btn => {
+      btn.textContent = '복사';
+      btn.classList.remove('copied');
+    });
     updateCopyBar();
   }
 
@@ -458,6 +462,12 @@
 
   function findBook(text) {
     const books = Object.keys(BOOK_MAP).sort((a, b) => b.length - a.length);
+
+    // 0차: 첫 단어가 BOOK_MAP에 있으면 바로 반환 (한 글자 약어 포함)
+    const firstWord = text.match(/^([가-힣]+)/);
+    if (firstWord && BOOK_MAP[firstWord[1]]) {
+      return { abbrev: BOOK_MAP[firstWord[1]], matched: firstWord[1], fuzzy: false };
+    }
 
     // 1차: 완전 포함 매칭
     for (const book of books) {
