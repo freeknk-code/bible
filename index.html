@@ -233,6 +233,32 @@
 
     #loadMoreBtn:active { background: #30363d; }
 
+    .load-prev-btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background: #161b22;
+      border: none;
+      border-bottom: 1px solid #30363d;
+      color: #8b949e;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .load-prev-btn:active { background: #21262d; }
+
+    .goto-btn {
+      background: #1f6feb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-right: 4px;
+    }
+    .goto-btn:active { background: #388bfd; }
+
     .ai-result-list {
       display: flex;
       flex-direction: column;
@@ -452,6 +478,7 @@
   let bibleKeys = [];
   let currentStart = 0;
   let nextStart = 0;
+  let topStart = 0;
   const PAGE_SIZE = 40;
 
   let isListening = false;
@@ -715,6 +742,16 @@
         const copyBtn = makeCopyBtn(key, verseText);
         div.appendChild(copyBtn);
 
+        const gotoBtn = document.createElement('button');
+        gotoBtn.className = 'goto-btn';
+        gotoBtn.textContent = '이동';
+        gotoBtn.onclick = () => {
+          const idx = bibleKeys.indexOf(key);
+          const bookResult = findBook(abbr) || { abbrev: abbr, matched: abbr };
+          showVerse(idx, bookResult, ch, vs);
+        };
+        div.appendChild(gotoBtn);
+
         const ref = document.createElement('span');
         ref.className = 'verse-ref';
         ref.textContent = (ABBREV_TO_FULL[abbr] || abbr) + ' ' + ch + '장 ' + vs + '절';
@@ -973,6 +1010,15 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
     if (!append) {
       container.innerHTML = '';
       container.scrollTop = 0;
+      topStart = startIdx;
+      if (startIdx > 0) {
+        const btn = document.createElement('button');
+        btn.id = 'loadPrevBtn';
+        btn.className = 'load-prev-btn';
+        btn.textContent = '▲ 이전 구절';
+        btn.onclick = loadPrev;
+        container.appendChild(btn);
+      }
     }
 
     const end = Math.min(startIdx + PAGE_SIZE, bibleKeys.length);
@@ -1016,6 +1062,45 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
   function loadMore() {
     renderVerses(nextStart, true);
     document.getElementById('versesContainer').scrollBy({ top: 100, behavior: 'smooth' });
+  }
+
+  function loadPrev() {
+    const PREV_SIZE = 20;
+    const newStart = Math.max(0, topStart - PREV_SIZE);
+    if (newStart >= topStart) return;
+    const container = document.getElementById('versesContainer');
+    const prevBtn = document.getElementById('loadPrevBtn');
+    const frag = document.createDocumentFragment();
+    let lastChapterKey = null;
+    for (let i = newStart; i < topStart; i++) {
+      const key = bibleKeys[i];
+      const text = bibleData[key];
+      const m = key.match(/^([가-힣]+)(\d+):(\d+)$/);
+      if (!m) continue;
+      const [, abbr, ch, vs] = m;
+      const ck = abbr + ch;
+      if (ck !== lastChapterKey) {
+        const hdr = document.createElement('div');
+        hdr.className = 'chapter-header';
+        hdr.textContent = (ABBREV_TO_FULL[abbr] || abbr) + ' ' + ch + '장';
+        frag.appendChild(hdr);
+        lastChapterKey = ck;
+      }
+      const div = document.createElement('div');
+      div.className = 'verse-block';
+      div.appendChild(makeCopyBtn(key, text));
+      const num = document.createElement('span');
+      num.className = 'verse-num';
+      num.textContent = vs;
+      div.appendChild(num);
+      div.appendChild(document.createTextNode(text));
+      frag.appendChild(div);
+    }
+    const oldHeight = container.scrollHeight;
+    container.insertBefore(frag, prevBtn ? prevBtn.nextSibling : container.firstChild);
+    container.scrollTop += container.scrollHeight - oldHeight;
+    topStart = newStart;
+    if (topStart === 0) prevBtn?.remove();
   }
 
   if ('serviceWorker' in navigator) {
