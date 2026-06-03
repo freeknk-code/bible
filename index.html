@@ -788,16 +788,21 @@
     text = convertKoreanNumbers(text);
     document.getElementById('textInput').value = text;
 
-    // 1. 장/절 형식: "갈 5장 1절"
-    const hasJangJeol = /\d+\s*[장편]/.test(text) && /\d+\s*절/.test(text);
-    if (hasJangJeol) {
+    // 1. 장/절 형식: "갈 5장 1절" / 장만 있으면 1절 기본값
+    const hasJang = /[일이삼사오육칠팔구백십\d]+\s*[장편]/.test(text);
+    if (hasJang) {
+      text = text.replace(/([일이삼사오육칠팔구백십]+)\s*([장편절])/g, (m, num, suf) => {
+        const n = koToNum(num); return n > 0 ? n + suf : m;
+      });
+      document.getElementById('textInput').value = text;
       const bookResult = findBook(text);
       if (bookResult) {
         const chM = text.match(/(\d+)\s*[장편]/);
         const vsM = text.match(/(\d+)\s*절/);
-        if (chM && vsM) {
-          const idx = tryVerseKey(bookResult, parseInt(chM[1]), parseInt(vsM[1]));
-          if (idx !== -1) { showVerse(idx, bookResult, chM[1], vsM[1]); return; }
+        if (chM) {
+          const vs = vsM ? parseInt(vsM[1]) : 1;
+          const idx = tryVerseKey(bookResult, parseInt(chM[1]), vs);
+          if (idx !== -1) { showVerse(idx, bookResult, chM[1], vs); return; }
         }
       }
     }
