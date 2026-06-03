@@ -619,6 +619,10 @@
   }
 
   function convertKoreanNumbers(text) {
+    const hasJang = /[일이삼사오육칠팔구백십\d]+\s*[장편]/.test(text);
+    const hasJeol = /[일이삼사오육칠팔구백십\d]+\s*절/.test(text);
+    if (!hasJang || !hasJeol) return text;
+
     const koNum = { '일':1,'이':2,'삼':3,'사':4,'오':5,'육':6,'칠':7,'팔':8,'구':9 };
     return text.replace(/([일이삼사오육칠팔구백십]+)\s*([장편절])/g, (match, num, suffix) => {
       if (!/[일이삼사오육칠팔구십백]/.test(num)) return match;
