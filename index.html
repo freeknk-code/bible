@@ -782,7 +782,10 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { response_mime_type: 'application/json' }
+          })
         }
       );
       if (!res.ok) {
@@ -793,9 +796,7 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
       }
       const data = await res.json();
       const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const m = txt.match(/\{[\s\S]*\}/);
-      if (!m) { setStatus('AI 응답을 파싱하지 못했습니다.', 'error'); return null; }
-      return JSON.parse(m[0]);
+      return JSON.parse(txt);
     } catch (e) {
       setStatus('네트워크 오류 또는 API 키를 확인하세요.', 'error');
       return null;
