@@ -98,16 +98,16 @@
     }
 
     .search-bar {
-      padding: 12px 16px;
+      padding: 10px 16px 8px;
       background: #161b22;
       border-bottom: 1px solid #30363d;
       display: flex;
+      flex-direction: column;
       gap: 8px;
-      align-items: center;
     }
 
     #textInput {
-      flex: 1;
+      width: 100%;
       background: #0d1117;
       border: 1px solid #30363d;
       border-radius: 8px;
@@ -115,11 +115,17 @@
       font-size: 1rem;
       padding: 10px 14px;
       outline: none;
+      box-sizing: border-box;
     }
 
     #textInput:focus { border-color: #f0a500; }
     #textInput::placeholder { color: #484f58; }
 
+    .mic-row {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+    }
 
     @keyframes pulse {
       0%, 100% { transform: scale(1); }
@@ -138,8 +144,8 @@
       color: #8b949e;
     }
     .mic-btn {
-      width: 44px;
-      height: 44px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       border: none;
       cursor: pointer;
@@ -149,8 +155,9 @@
       justify-content: center;
       transition: all 0.2s;
     }
-    #micVerseBtn { background: #1f6feb; }
-    #micSearchBtn { background: #238636; }
+    #micVerseBtn   { background: #1f6feb; }
+    #micKeywordBtn { background: #238636; }
+    #micAiBtn      { background: #7c3aed; }
     .mic-btn.listening {
       background: #e05c5c !important;
       animation: pulse 1s infinite;
@@ -309,14 +316,20 @@
 </div>
 
 <div class="search-bar">
-  <div class="mic-wrap">
-    <button class="mic-btn" id="micVerseBtn" onclick="toggleListening('verse')" title="구절 음성 입력">🎤</button>
-    <span class="mic-label">구절</span>
-  </div>
   <input id="textInput" type="text" placeholder="갈5:1 / 갈오장일절 / 믿음 소망 사랑" onkeydown="if(event.key==='Enter')goToVerse()">
-  <div class="mic-wrap">
-    <button class="mic-btn" id="micSearchBtn" onclick="toggleListening('search')" title="검색 음성 입력">🎤</button>
-    <span class="mic-label">검색</span>
+  <div class="mic-row">
+    <div class="mic-wrap">
+      <button class="mic-btn" id="micVerseBtn" onclick="toggleListening('verse')" title="구절 이동">🎤</button>
+      <span class="mic-label">구절</span>
+    </div>
+    <div class="mic-wrap">
+      <button class="mic-btn" id="micKeywordBtn" onclick="toggleListening('keyword')" title="키워드 검색">🎤</button>
+      <span class="mic-label">키워드</span>
+    </div>
+    <div class="mic-wrap">
+      <button class="mic-btn" id="micAiBtn" onclick="toggleListening('ai')" title="AI 검색">🎤</button>
+      <span class="mic-label">AI</span>
+    </div>
   </div>
 </div>
 
@@ -488,7 +501,9 @@
   }
 
   function activeMicBtn() {
-    return document.getElementById(listenMode === 'verse' ? 'micVerseBtn' : 'micSearchBtn');
+    if (listenMode === 'verse') return document.getElementById('micVerseBtn');
+    if (listenMode === 'keyword') return document.getElementById('micKeywordBtn');
+    return document.getElementById('micAiBtn');
   }
 
   function startRecognition() {
@@ -502,7 +517,8 @@
       isListening = true;
       activeMicBtn().classList.add('listening');
       activeMicBtn().textContent = '⏹';
-      setStatus(listenMode === 'verse' ? '듣고 있습니다... 구절을 말씀해주세요' : '듣고 있습니다... 검색어를 말씀해주세요');
+      const modeMsg = listenMode === 'verse' ? '구절을 말씀해주세요' : listenMode === 'keyword' ? '검색어를 말씀해주세요' : 'AI 검색어를 말씀해주세요';
+      setStatus('듣고 있습니다... ' + modeMsg);
     };
 
     recognition.onresult = (e) => {
@@ -510,7 +526,8 @@
       document.getElementById('textInput').value = transcript;
       if (e.results[e.results.length - 1].isFinal) {
         if (listenMode === 'verse') goToVerse(transcript);
-        else searchBible(transcript);
+        else if (listenMode === 'keyword') searchKeywordDirect(transcript);
+        else searchAI(transcript);
       }
     };
 
@@ -845,28 +862,37 @@
     setStatus(label + ' ' + ch + '장 ' + vs + '절부터 표시합니다.', 'success');
   }
 
-  async function searchBible(text) {
+  function searchKeywordDirect(text) {
     text = text || document.getElementById('textInput').value.trim();
     if (!text) return;
     if (!bibleKeys.length) { setStatus('데이터 로딩 중입니다.', 'error'); return; }
-
-    const geminiKey = localStorage.getItem('geminiKey');
-    if (geminiKey) {
-      setStatus('AI 분석 중...⏳');
-      const result = await searchWithGemini(text);
-      if (result === null) return; // 오류 발생 - 이미 에러 메시지 표시됨
-      if (result.book && result.chapter && result.verse) {
-        const bookResult = { abbrev: result.book, matched: result.book };
-        const idx = tryVerseKey(bookResult, result.chapter, result.verse);
-        if (idx !== -1) { showVerse(idx, bookResult, result.chapter, result.verse); return; }
-      }
-      if (result.keywords && result.keywords.length > 0) {
-        searchKeyword(result.keywords, true);
-        return;
-      }
-    }
     const words = text.trim().split(/\s+/).filter(w => w.length > 0);
     searchKeyword(words, false);
+  }
+
+  async function searchAI(text) {
+    text = text || document.getElementById('textInput').value.trim();
+    if (!text) return;
+    if (!bibleKeys.length) { setStatus('데이터 로딩 중입니다.', 'error'); return; }
+    const geminiKey = localStorage.getItem('geminiKey');
+    if (!geminiKey) { setStatus('⚙️를 눌러 Gemini API 키를 먼저 입력해주세요.', 'error'); return; }
+    setStatus('AI 분석 중...⏳');
+    const result = await searchWithGemini(text);
+    if (result === null) return;
+    if (result.book && result.chapter && result.verse) {
+      const bookResult = { abbrev: result.book, matched: result.book };
+      const idx = tryVerseKey(bookResult, result.chapter, result.verse);
+      if (idx !== -1) { showVerse(idx, bookResult, result.chapter, result.verse); return; }
+    }
+    if (result.keywords && result.keywords.length > 0) {
+      searchKeyword(result.keywords, true);
+      return;
+    }
+    setStatus('AI가 관련 구절을 찾지 못했습니다.', 'error');
+  }
+
+  async function searchBible(text) {
+    searchKeywordDirect(text);
   }
 
   async function searchVerse(text) {
