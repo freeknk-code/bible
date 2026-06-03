@@ -37,10 +37,64 @@
       text-align: center;
     }
 
+    header {
+      position: relative;
+    }
     header h1 {
       font-size: 1.2rem;
       color: #f0a500;
       letter-spacing: 0.05em;
+    }
+    #settingsBtn {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      opacity: 0.6;
+    }
+    .settings-panel {
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      padding: 10px 16px;
+      display: none;
+      gap: 8px;
+      align-items: center;
+    }
+    .settings-panel.open { display: flex; }
+    .settings-panel input {
+      flex: 1;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      color: #c9d1d9;
+      font-size: 0.85rem;
+      padding: 8px 12px;
+      outline: none;
+    }
+    .settings-panel input:focus { border-color: #f0a500; }
+    .settings-panel button {
+      background: #238636;
+      border: none;
+      color: white;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .ai-badge {
+      display: inline-block;
+      background: #8957e5;
+      color: white;
+      font-size: 0.65rem;
+      padding: 1px 5px;
+      border-radius: 4px;
+      margin-left: 6px;
+      vertical-align: middle;
     }
 
     .search-bar {
@@ -248,7 +302,12 @@
 
 <header>
   <h1>📖 성경 음성 검색 (개역개정)</h1>
+  <button id="settingsBtn" onclick="toggleSettings()" title="설정">⚙️</button>
 </header>
+<div class="settings-panel" id="settingsPanel">
+  <input id="apiKeyInput" type="password" placeholder="Gemini API 키 입력 (자연어 검색용)">
+  <button onclick="saveApiKey()">저장</button>
+</div>
 
 <div class="search-bar">
   <button id="micBtn" onclick="toggleListening()" title="음성 입력">🎤</button>
@@ -561,7 +620,7 @@
     return btn;
   }
 
-  function searchKeyword(words) {
+  function searchKeyword(words, isAI = false) {
     if (!bibleKeys.length) { setStatus('데이터 로딩 중입니다.', 'error'); return; }
     setStatus('검색 중...');
 
@@ -614,7 +673,8 @@
       });
 
       document.getElementById('loadMoreBtn').style.display = 'none';
-      setStatus(results.length + '개 구절을 찾았습니다.', 'success');
+      const badge = isAI ? ' <span class="ai-badge">AI</span>' : '';
+      setStatus(results.length + '개 구절을 찾았습니다.' + badge, 'success');
     }, 10);
   }
 
@@ -643,7 +703,63 @@
     });
   }
 
-  function searchVerse(text) {
+  function toggleSettings() {
+    const panel = document.getElementById('settingsPanel');
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')) {
+      const saved = localStorage.getItem('geminiKey') || '';
+      document.getElementById('apiKeyInput').value = saved ? '●'.repeat(8) : '';
+    }
+  }
+
+  function saveApiKey() {
+    const val = document.getElementById('apiKeyInput').value.trim();
+    if (val && !val.startsWith('●')) {
+      localStorage.setItem('geminiKey', val);
+    }
+    document.getElementById('settingsPanel').classList.remove('open');
+    const has = !!localStorage.getItem('geminiKey');
+    setStatus(has ? 'API 키 저장됨. 자연어 검색 사용 가능!' : 'API 키가 없습니다.', has ? 'success' : '');
+  }
+
+  async function searchWithGemini(query) {
+    const key = localStorage.getItem('geminiKey');
+    if (!key) return null;
+    const prompt = `성경 검색 요청을 분석해서 JSON으로만 응답하세요 (설명 없이).
+검색어: "${query}"
+{
+  "keywords": [],     // 성경에서 찾을 핵심 단어들 (조사 제거, 2자 이상)
+  "book": null,       // 특정 책 약어(창/출/갈/요 등), 없으면 null
+  "chapter": null,    // 장 번호(숫자), 없으면 null
+  "verse": null       // 절 번호(숫자), 없으면 null
+}`;
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        if (err.error?.code === 429) setStatus('API 한도 초과. 잠시 후 다시 시도하세요.', 'error');
+        else setStatus('Gemini 오류: ' + (err.error?.message || res.status), 'error');
+        return null;
+      }
+      const data = await res.json();
+      const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const m = txt.match(/\{[\s\S]*\}/);
+      if (!m) return null;
+      return JSON.parse(m[0]);
+    } catch (e) {
+      setStatus('네트워크 오류 또는 API 키를 확인하세요.', 'error');
+      return null;
+    }
+  }
+
+  async function searchVerse(text) {
     text = text || document.getElementById('textInput').value.trim();
     if (!text) return;
     text = convertKoreanNumbers(text);
@@ -651,11 +767,32 @@
 
     if (!bibleKeys.length) { setStatus('데이터 로딩 중입니다. 잠시 후 다시 시도해주세요.', 'error'); return; }
 
-    // 장/절 패턴 없으면 키워드 검색
+    // 장/절 패턴 없으면 자연어 or 키워드 검색
     const hasVerseRef = /\d+\s*[장편]/.test(text) && /\d+\s*절/.test(text);
     if (!hasVerseRef) {
+      const geminiKey = localStorage.getItem('geminiKey');
+      if (geminiKey) {
+        setStatus('AI 분석 중...⏳');
+        const result = await searchWithGemini(text);
+        if (result) {
+          if (result.book && result.chapter && result.verse) {
+            const key = result.book + result.chapter + ':' + result.verse;
+            const idx = bibleKeys.indexOf(key);
+            if (idx !== -1) {
+              currentStart = idx;
+              renderVerses(idx, false);
+              setStatus('AI 검색: ' + text + ' <span class="ai-badge">AI</span>', 'success');
+              return;
+            }
+          }
+          if (result.keywords && result.keywords.length > 0) {
+            searchKeyword(result.keywords, true);
+            return;
+          }
+        }
+      }
       const words = text.trim().split(/\s+/).filter(w => w.length > 0);
-      searchKeyword(words);
+      searchKeyword(words, false);
       return;
     }
 
