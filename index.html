@@ -494,6 +494,13 @@
   function toggleListening(mode) {
     if (isListening) { recognition && recognition.stop(); return; }
     listenMode = mode;
+    const existing = document.getElementById('textInput').value.trim();
+    if (existing) {
+      if (mode === 'verse') goToVerse(existing);
+      else if (mode === 'keyword') searchKeywordDirect(existing);
+      else searchAI(existing);
+      return;
+    }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { setStatus('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome을 사용해주세요.', 'error'); return; }
     ensureMicPermission(startRecognition);
