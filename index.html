@@ -852,16 +852,15 @@
     if (geminiKey) {
       setStatus('AI 분석 중...⏳');
       const result = await searchWithGemini(text);
-      if (result) {
-        if (result.book && result.chapter && result.verse) {
-          const bookResult = { abbrev: result.book, matched: result.book };
-          const idx = tryVerseKey(bookResult, result.chapter, result.verse);
-          if (idx !== -1) { showVerse(idx, bookResult, result.chapter, result.verse); return; }
-        }
-        if (result.keywords && result.keywords.length > 0) {
-          searchKeyword(result.keywords, true);
-          return;
-        }
+      if (result === null) return; // 오류 발생 - 이미 에러 메시지 표시됨
+      if (result.book && result.chapter && result.verse) {
+        const bookResult = { abbrev: result.book, matched: result.book };
+        const idx = tryVerseKey(bookResult, result.chapter, result.verse);
+        if (idx !== -1) { showVerse(idx, bookResult, result.chapter, result.verse); return; }
+      }
+      if (result.keywords && result.keywords.length > 0) {
+        searchKeyword(result.keywords, true);
+        return;
       }
     }
     const words = text.trim().split(/\s+/).filter(w => w.length > 0);
