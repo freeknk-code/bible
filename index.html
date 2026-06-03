@@ -215,13 +215,8 @@
       line-height: 2;
     }
 
-    .load-more-wrap {
-      text-align: center;
-      padding: 20px;
-    }
-
     #loadMoreBtn {
-      display: none;
+      display: block;
       padding: 10px 32px;
       background: #21262d;
       border: 1px solid #30363d;
@@ -229,6 +224,7 @@
       border-radius: 20px;
       font-size: 0.95rem;
       cursor: pointer;
+      margin: 20px auto;
     }
 
     #loadMoreBtn:active { background: #30363d; }
@@ -408,9 +404,6 @@
   </div>
 </div>
 
-<div class="load-more-wrap">
-  <button id="loadMoreBtn" onclick="loadMore()">▼ 더 보기</button>
-</div>
 
 <script>
   const BOOK_MAP = {
@@ -783,7 +776,6 @@
         container.appendChild(div);
       });
 
-      document.getElementById('loadMoreBtn').style.display = 'none';
       const badge = isAI ? ' <span class="ai-badge">AI</span>' : '';
       setStatus(results.length + '개 구절을 찾았습니다.' + badge, 'success');
     }, 10);
@@ -1114,7 +1106,15 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
     }
 
     nextStart = end;
-    document.getElementById('loadMoreBtn').style.display = end < bibleKeys.length ? 'block' : 'none';
+    const existingLoadMore = container.querySelector('#loadMoreBtn');
+    if (existingLoadMore) existingLoadMore.remove();
+    if (end < bibleKeys.length) {
+      const loadBtn = document.createElement('button');
+      loadBtn.id = 'loadMoreBtn';
+      loadBtn.textContent = '▼ 더 보기';
+      loadBtn.onclick = loadMore;
+      container.appendChild(loadBtn);
+    }
   }
 
   function loadMore() {
