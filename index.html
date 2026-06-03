@@ -741,14 +741,16 @@
   async function searchWithGemini(query) {
     const key = localStorage.getItem('geminiKey');
     if (!key) return null;
-    const prompt = `성경 검색 요청을 분석해서 JSON으로만 응답하세요 (설명 없이).
+    const prompt = `너는 성경 전문가야. 아래 검색어를 분석해서 JSON만 반환해 (설명 없이).
+
 검색어: "${query}"
-{
-  "keywords": [],     // 성경에서 찾을 핵심 단어들 (조사 제거, 2자 이상)
-  "book": null,       // 특정 책 약어(창/출/갈/요 등), 없으면 null
-  "chapter": null,    // 장 번호(숫자), 없으면 null
-  "verse": null       // 절 번호(숫자), 없으면 null
-}`;
+
+규칙:
+1. 비유/사건/인물/설교 이름이면 → 해당 성경 위치(book/chapter/verse)를 반환. 예) 탕자의 비유→눅15:11, 산상수훈→마5:1, 팔복→마5:3, 오병이어→마14:13
+2. 특정 구절이나 주제 검색이면 → keywords 배열에 성경 본문에 실제 나올 법한 핵심 단어 (조사 제거, 2자 이상)
+3. book 약어: 창/출/레/민/신/수/삿/룻/삼상/삼하/왕상/왕하/대상/대하/스/느/에/욥/시/잠/전/아/사/렘/애/겔/단/호/욜/암/옵/욘/미/나/합/습/학/슥/말/마/막/눅/요/행/롬/고전/고후/갈/엡/빌/골/살전/살후/딤전/딤후/딛/몬/히/약/벧전/벧후/요일/요이/요삼/유/계
+
+{"keywords":[],"book":null,"chapter":null,"verse":null}`;
     try {
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
