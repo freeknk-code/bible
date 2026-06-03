@@ -120,52 +120,41 @@
     #textInput:focus { border-color: #f0a500; }
     #textInput::placeholder { color: #484f58; }
 
-    #micBtn {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: #f0a500;
-      border: none;
-      cursor: pointer;
-      font-size: 1.4rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-      flex-shrink: 0;
-    }
-
-    #micBtn.listening {
-      background: #e05c5c;
-      animation: pulse 1s infinite;
-    }
 
     @keyframes pulse {
       0%, 100% { transform: scale(1); }
       50% { transform: scale(1.12); }
     }
 
-    .btn-row {
+    .mic-wrap {
       display: flex;
-      gap: 8px;
-      padding: 8px 16px;
-      background: #161b22;
-      border-bottom: 1px solid #30363d;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
     }
-    .action-btn {
-      flex: 1;
+    .mic-label {
+      font-size: 0.65rem;
+      color: #8b949e;
+    }
+    .mic-btn {
+      width: 44px;
       height: 44px;
-      border-radius: 8px;
+      border-radius: 50%;
       border: none;
-      color: white;
-      font-size: 0.95rem;
       cursor: pointer;
-      font-weight: 600;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
     }
-    .verse-btn { background: #1f6feb; }
-    .verse-btn:active { background: #1158c7; }
-    .search-btn { background: #238636; }
-    .search-btn:active { background: #1a6427; }
+    #micVerseBtn { background: #1f6feb; }
+    #micSearchBtn { background: #238636; }
+    .mic-btn.listening {
+      background: #e05c5c !important;
+      animation: pulse 1s infinite;
+    }
 
     .status-bar {
       padding: 8px 16px;
@@ -320,12 +309,15 @@
 </div>
 
 <div class="search-bar">
-  <button id="micBtn" onclick="toggleListening()" title="음성 입력">🎤</button>
-  <input id="textInput" type="text" placeholder="갈 5장 1절 / 갈5:1 / 갈오일 / 믿음 소망 사랑" onkeydown="if(event.key==='Enter')goToVerse()">
-</div>
-<div class="btn-row">
-  <button class="action-btn verse-btn" onclick="goToVerse()">📖 구절 이동</button>
-  <button class="action-btn search-btn" onclick="searchBible()">🔍 성경 검색</button>
+  <div class="mic-wrap">
+    <button class="mic-btn" id="micVerseBtn" onclick="toggleListening('verse')" title="구절 음성 입력">🎤</button>
+    <span class="mic-label">구절</span>
+  </div>
+  <input id="textInput" type="text" placeholder="갈5:1 / 갈오일 / 믿음 소망 사랑" onkeydown="if(event.key==='Enter')goToVerse()">
+  <div class="mic-wrap">
+    <button class="mic-btn" id="micSearchBtn" onclick="toggleListening('search')" title="검색 음성 입력">🎤</button>
+    <span class="mic-label">검색</span>
+  </div>
 </div>
 
 <div class="copy-bar" id="copyBar">
@@ -485,19 +477,22 @@
     el.className = 'status-bar' + (type ? ' ' + type : '');
   }
 
-  // Voice recognition
-  function toggleListening() {
-    if (isListening) { recognition && recognition.stop(); return; }
+  let listenMode = 'verse';
 
+  function toggleListening(mode) {
+    if (isListening) { recognition && recognition.stop(); return; }
+    listenMode = mode;
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { setStatus('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome을 사용해주세요.', 'error'); return; }
-
     ensureMicPermission(startRecognition);
+  }
+
+  function activeMicBtn() {
+    return document.getElementById(listenMode === 'verse' ? 'micVerseBtn' : 'micSearchBtn');
   }
 
   function startRecognition() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-
     recognition = new SR();
     recognition.lang = 'ko-KR';
     recognition.continuous = false;
@@ -505,27 +500,30 @@
 
     recognition.onstart = () => {
       isListening = true;
-      document.getElementById('micBtn').classList.add('listening');
-      document.getElementById('micBtn').textContent = '⏹';
-      setStatus('듣고 있습니다... 구절을 말씀해주세요');
+      activeMicBtn().classList.add('listening');
+      activeMicBtn().textContent = '⏹';
+      setStatus(listenMode === 'verse' ? '듣고 있습니다... 구절을 말씀해주세요' : '듣고 있습니다... 검색어를 말씀해주세요');
     };
 
     recognition.onresult = (e) => {
       const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
       document.getElementById('textInput').value = transcript;
-      if (e.results[e.results.length - 1].isFinal) searchVerse(transcript);
+      if (e.results[e.results.length - 1].isFinal) {
+        if (listenMode === 'verse') goToVerse(transcript);
+        else searchBible(transcript);
+      }
     };
 
     recognition.onend = () => {
       isListening = false;
-      document.getElementById('micBtn').classList.remove('listening');
-      document.getElementById('micBtn').textContent = '🎤';
+      activeMicBtn().classList.remove('listening');
+      activeMicBtn().textContent = '🎤';
     };
 
     recognition.onerror = (e) => {
       isListening = false;
-      document.getElementById('micBtn').classList.remove('listening');
-      document.getElementById('micBtn').textContent = '🎤';
+      activeMicBtn().classList.remove('listening');
+      activeMicBtn().textContent = '🎤';
       setStatus('음성 인식 오류: ' + e.error, 'error');
     };
 
