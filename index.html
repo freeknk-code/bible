@@ -259,24 +259,25 @@
     }
     .goto-btn:active { background: #388bfd; }
 
-    .ai-result-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      padding: 20px 16px;
+    .acc-item {
+      border-bottom: 1px solid #30363d;
     }
-    .ai-result-item {
+    .acc-header {
+      width: 100%;
       background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 10px;
+      border: none;
       color: #c9d1d9;
-      font-size: 1.05rem;
+      font-size: 1rem;
       padding: 16px;
       text-align: left;
       cursor: pointer;
-      transition: background 0.15s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
-    .ai-result-item:active { background: #21262d; }
+    .acc-header:active { background: #21262d; }
+    .acc-arrow { color: #8b949e; font-size: 0.85rem; }
+    .acc-body { background: #0d1117; }
 
     .empty-state {
       text-align: center;
@@ -963,22 +964,61 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
         return;
       }
       if (valid.length > 1) {
-        // 결과 여러 개 → 목록 표시
+        // 결과 여러 개 → 아코디언 목록
         const container = document.getElementById('versesContainer');
         container.innerHTML = '';
         container.scrollTop = 0;
-        const listDiv = document.createElement('div');
-        listDiv.className = 'ai-result-list';
         valid.forEach(({ bookResult, idx, chapter, verse }) => {
           const label = ABBREV_TO_FULL[bookResult.abbrev] || bookResult.abbrev;
-          const btn = document.createElement('button');
-          btn.className = 'ai-result-item';
-          btn.textContent = `${label} ${chapter}장 ${verse}절`;
-          btn.onclick = () => showVerse(idx, bookResult, chapter, verse);
-          listDiv.appendChild(btn);
+          const item = document.createElement('div');
+          item.className = 'acc-item';
+
+          const header = document.createElement('button');
+          header.className = 'acc-header';
+          header.innerHTML = `<span>${label} ${chapter}장 ${verse}절</span><span class="acc-arrow">▼</span>`;
+
+          const body = document.createElement('div');
+          body.className = 'acc-body';
+          body.style.display = 'none';
+
+          // 말씀 내용 렌더링 (20절)
+          let lastCk = null;
+          const end = Math.min(idx + 20, bibleKeys.length);
+          for (let i = idx; i < end; i++) {
+            const key = bibleKeys[i];
+            const m = key.match(/^([가-힣]+)(\d+):(\d+)$/);
+            if (!m) continue;
+            const [, ab, ch, vs] = m;
+            const ck = ab + ch;
+            if (ck !== lastCk) {
+              const hdr = document.createElement('div');
+              hdr.className = 'chapter-header';
+              hdr.textContent = (ABBREV_TO_FULL[ab] || ab) + ' ' + ch + '장';
+              body.appendChild(hdr);
+              lastCk = ck;
+            }
+            const div = document.createElement('div');
+            div.className = 'verse-block';
+            div.appendChild(makeCopyBtn(key, bibleData[key]));
+            const num = document.createElement('span');
+            num.className = 'verse-num';
+            num.textContent = vs;
+            div.appendChild(num);
+            div.appendChild(document.createTextNode(bibleData[key]));
+            body.appendChild(div);
+          }
+
+          header.onclick = () => {
+            const open = body.style.display !== 'none';
+            body.style.display = open ? 'none' : 'block';
+            header.querySelector('.acc-arrow').textContent = open ? '▼' : '▲';
+          };
+
+          item.appendChild(header);
+          item.appendChild(body);
+          container.appendChild(item);
         });
-        container.appendChild(listDiv);
-        setStatus(`AI 검색 결과 ${valid.length}곳 — 탭해서 이동하세요.`, 'success');
+        setStatus(`AI 검색 결과 ${valid.length}곳`, 'success');
         document.getElementById('textInput').value = '';
         return;
       }
