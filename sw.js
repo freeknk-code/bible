@@ -1,4 +1,4 @@
-const CACHE = 'bible-v22';
+const CACHE = 'bible-v23';
 const ASSETS = [
   '/bible/',
   '/bible/index.html',
@@ -24,10 +24,10 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = e.request.url;
-  // index.html은 항상 네트워크 우선 (최신 코드 보장)
+  // index.html은 HTTP 캐시 포함 완전 우회해서 최신 버전 보장
   if (url.endsWith('/bible/') || url.endsWith('index.html')) {
     e.respondWith(
-      fetch(e.request).catch(() => caches.match(e.request))
+      fetch(e.request, { cache: 'no-store' }).catch(() => caches.match(e.request))
     );
   } else {
     e.respondWith(
