@@ -496,6 +496,7 @@
     listenMode = mode;
     const existing = document.getElementById('textInput').value.trim();
     if (existing) {
+      document.getElementById('textInput').value = '';
       if (mode === 'verse') goToVerse(existing);
       else if (mode === 'keyword') searchKeywordDirect(existing);
       else searchAI(existing);
