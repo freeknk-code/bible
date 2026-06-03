@@ -233,6 +233,25 @@
 
     #loadMoreBtn:active { background: #30363d; }
 
+    .ai-result-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 20px 16px;
+    }
+    .ai-result-item {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      color: #c9d1d9;
+      font-size: 1.05rem;
+      padding: 16px;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .ai-result-item:active { background: #21262d; }
+
     .empty-state {
       text-align: center;
       padding: 60px 20px;
@@ -893,22 +912,36 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
       ? result.results
       : (result.book && result.chapter && result.verse ? [result] : []);
     if (locs.length > 0) {
-      const container = document.getElementById('versesContainer');
-      container.innerHTML = '';
-      container.scrollTop = 0;
-      let found = 0;
-      locs.forEach(r => {
+      // 유효한 위치만 필터링
+      const valid = locs.map(r => {
         const bookResult = findBook(r.book) || { abbrev: r.book, matched: r.book };
         const idx = tryVerseKey(bookResult, r.chapter, r.verse);
-        if (idx !== -1) {
-          if (found === 0) currentStart = idx;
-          renderVerses(idx, found > 0);
-          found++;
-        }
-      });
-      if (found > 0) {
-        const msg = found > 1 ? `AI 검색 결과 ${found}곳을 찾았습니다.` : '구절을 찾았습니다.';
-        setStatus(msg, 'success');
+        return idx !== -1 ? { bookResult, idx, chapter: r.chapter, verse: r.verse } : null;
+      }).filter(Boolean);
+
+      if (valid.length === 1) {
+        // 결과 1개 → 바로 말씀 표시
+        const { bookResult, idx, chapter, verse } = valid[0];
+        showVerse(idx, bookResult, chapter, verse);
+        return;
+      }
+      if (valid.length > 1) {
+        // 결과 여러 개 → 목록 표시
+        const container = document.getElementById('versesContainer');
+        container.innerHTML = '';
+        container.scrollTop = 0;
+        const listDiv = document.createElement('div');
+        listDiv.className = 'ai-result-list';
+        valid.forEach(({ bookResult, idx, chapter, verse }) => {
+          const label = ABBREV_TO_FULL[bookResult.abbrev] || bookResult.abbrev;
+          const btn = document.createElement('button');
+          btn.className = 'ai-result-item';
+          btn.textContent = `${label} ${chapter}장 ${verse}절`;
+          btn.onclick = () => showVerse(idx, bookResult, chapter, verse);
+          listDiv.appendChild(btn);
+        });
+        container.appendChild(listDiv);
+        setStatus(`AI 검색 결과 ${valid.length}곳 — 탭해서 이동하세요.`, 'success');
         document.getElementById('textInput').value = '';
         return;
       }
