@@ -618,9 +618,32 @@
     }, 10);
   }
 
+  function convertKoreanNumbers(text) {
+    const koNum = { '일':1,'이':2,'삼':3,'사':4,'오':5,'육':6,'칠':7,'팔':8,'구':9 };
+    return text.replace(/([일이삼사오육칠팔구백십]+)\s*([장편절])/g, (match, num, suffix) => {
+      if (!/[일이삼사오육칠팔구십백]/.test(num)) return match;
+      let n = 0, s = num;
+      if (s.includes('백')) {
+        const i = s.indexOf('백');
+        n += (koNum[s.slice(0, i)] || 1) * 100;
+        s = s.slice(i + 1);
+      }
+      if (s.includes('십')) {
+        const i = s.indexOf('십');
+        const t = s.slice(0, i);
+        n += (t ? (koNum[t] || 1) : 1) * 10;
+        s = s.slice(i + 1);
+      }
+      if (s && koNum[s] !== undefined) n += koNum[s];
+      return n > 0 ? n + suffix : match;
+    });
+  }
+
   function searchVerse(text) {
     text = text || document.getElementById('textInput').value.trim();
     if (!text) return;
+    text = convertKoreanNumbers(text);
+    document.getElementById('textInput').value = text;
 
     if (!bibleKeys.length) { setStatus('데이터 로딩 중입니다. 잠시 후 다시 시도해주세요.', 'error'); return; }
 
