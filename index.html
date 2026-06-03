@@ -767,6 +767,23 @@
 
     if (!bibleKeys.length) { setStatus('데이터 로딩 중입니다. 잠시 후 다시 시도해주세요.', 'error'); return; }
 
+    // "창 5 1" 또는 "갈5:1" 단축 형식 처리
+    const shortRef = text.match(/^([가-힣]+)\s*(\d+)[:\s]\s*(\d+)$/);
+    if (shortRef) {
+      const bookResult = findBook(shortRef[1]);
+      if (bookResult) {
+        const key = bookResult.abbrev + shortRef[2] + ':' + shortRef[3];
+        const idx = bibleKeys.indexOf(key);
+        if (idx !== -1) {
+          currentStart = idx;
+          renderVerses(idx, false);
+          const label = ABBREV_TO_FULL[bookResult.abbrev] || bookResult.matched;
+          setStatus(label + ' ' + shortRef[2] + '장 ' + shortRef[3] + '절부터 표시합니다.', 'success');
+          return;
+        }
+      }
+    }
+
     // 장/절 패턴 없으면 자연어 or 키워드 검색
     const hasVerseRef = /\d+\s*[장편]/.test(text) && /\d+\s*절/.test(text);
     if (!hasVerseRef) {
