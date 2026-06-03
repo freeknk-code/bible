@@ -312,7 +312,7 @@
 <div class="settings-panel" id="settingsPanel">
   <input id="apiKeyInput" type="password" placeholder="Gemini API 키 입력 (자연어 검색용)">
   <button onclick="saveApiKey()">저장</button>
-  <span style="font-size:0.7rem;color:#8b949e;width:100%;text-align:center;margin-top:2px;">AI 모델: gemini-2.5-flash-lite &nbsp;|&nbsp; 앱 버전: v4.0</span>
+  <span style="font-size:0.7rem;color:#8b949e;width:100%;text-align:center;margin-top:2px;">AI 모델: gemini-2.5-flash-lite &nbsp;|&nbsp; 앱 버전: v4.1</span>
 </div>
 
 <div class="search-bar">
@@ -873,6 +873,7 @@
     text = text || document.getElementById('textInput').value.trim();
     if (!text) return;
     if (!bibleKeys.length) { setStatus('데이터 로딩 중입니다.', 'error'); return; }
+    document.getElementById('textInput').value = '';
     const words = text.trim().split(/\s+/).filter(w => w.length > 0);
     searchKeyword(words, false);
   }
@@ -886,12 +887,16 @@
     setStatus('AI 분석 중...⏳');
     const result = await searchWithGemini(text);
     if (result === null) return;
-    if (result.results && result.results.length > 0) {
+    // results 배열 또는 단일 book/chapter/verse 모두 처리
+    const locs = result.results && result.results.length > 0
+      ? result.results
+      : (result.book && result.chapter && result.verse ? [result] : []);
+    if (locs.length > 0) {
       const container = document.getElementById('versesContainer');
       container.innerHTML = '';
       container.scrollTop = 0;
       let found = 0;
-      result.results.forEach(r => {
+      locs.forEach(r => {
         const bookResult = { abbrev: r.book, matched: r.book };
         const idx = tryVerseKey(bookResult, r.chapter, r.verse);
         if (idx !== -1) {
@@ -901,12 +906,14 @@
         }
       });
       if (found > 0) {
-        setStatus(`AI 검색 결과 ${found}곳을 찾았습니다.`, 'success');
+        const msg = found > 1 ? `AI 검색 결과 ${found}곳을 찾았습니다.` : '구절을 찾았습니다.';
+        setStatus(msg, 'success');
         document.getElementById('textInput').value = '';
         return;
       }
     }
     if (result.keywords && result.keywords.length > 0) {
+      document.getElementById('textInput').value = '';
       searchKeyword(result.keywords, true);
       return;
     }
