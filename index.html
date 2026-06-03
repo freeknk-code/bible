@@ -678,27 +678,32 @@
     }, 10);
   }
 
+  function koToNum(s) {
+    if (/^\d+$/.test(s)) return parseInt(s);
+    const koNum = { '일':1,'이':2,'삼':3,'사':4,'오':5,'육':6,'칠':7,'팔':8,'구':9 };
+    let n = 0;
+    if (s.includes('백')) {
+      const i = s.indexOf('백');
+      n += (koNum[s.slice(0, i)] || 1) * 100;
+      s = s.slice(i + 1);
+    }
+    if (s.includes('십')) {
+      const i = s.indexOf('십');
+      const t = s.slice(0, i);
+      n += (t ? (koNum[t] || 1) : 1) * 10;
+      s = s.slice(i + 1);
+    }
+    if (s && koNum[s] !== undefined) n += koNum[s];
+    return n || 0;
+  }
+
   function convertKoreanNumbers(text) {
     const hasJang = /[일이삼사오육칠팔구백십\d]+\s*[장편]/.test(text);
     const hasJeol = /[일이삼사오육칠팔구백십\d]+\s*절/.test(text);
     if (!hasJang || !hasJeol) return text;
 
-    const koNum = { '일':1,'이':2,'삼':3,'사':4,'오':5,'육':6,'칠':7,'팔':8,'구':9 };
     return text.replace(/([일이삼사오육칠팔구백십]+)\s*([장편절])/g, (match, num, suffix) => {
-      if (!/[일이삼사오육칠팔구십백]/.test(num)) return match;
-      let n = 0, s = num;
-      if (s.includes('백')) {
-        const i = s.indexOf('백');
-        n += (koNum[s.slice(0, i)] || 1) * 100;
-        s = s.slice(i + 1);
-      }
-      if (s.includes('십')) {
-        const i = s.indexOf('십');
-        const t = s.slice(0, i);
-        n += (t ? (koNum[t] || 1) : 1) * 10;
-        s = s.slice(i + 1);
-      }
-      if (s && koNum[s] !== undefined) n += koNum[s];
+      const n = koToNum(num);
       return n > 0 ? n + suffix : match;
     });
   }
@@ -767,19 +772,24 @@
 
     if (!bibleKeys.length) { setStatus('데이터 로딩 중입니다. 잠시 후 다시 시도해주세요.', 'error'); return; }
 
-    // "창 5 1" 또는 "갈5:1" 단축 형식 처리
-    const shortRef = text.match(/^([가-힣]+)\s*(\d+)[:\s]\s*(\d+)$/);
+    // "창 5 1" / "갈5:1" / "갈 오 일" 단축 형식 처리
+    const numPat = '([일이삼사오육칠팔구백십\\d]+)';
+    const shortRef = text.match(new RegExp('^([가-힣]+)\\s*' + numPat + '[:\\s]\\s*' + numPat + '$'));
     if (shortRef) {
       const bookResult = findBook(shortRef[1]);
       if (bookResult) {
-        const key = bookResult.abbrev + shortRef[2] + ':' + shortRef[3];
-        const idx = bibleKeys.indexOf(key);
-        if (idx !== -1) {
-          currentStart = idx;
-          renderVerses(idx, false);
-          const label = ABBREV_TO_FULL[bookResult.abbrev] || bookResult.matched;
-          setStatus(label + ' ' + shortRef[2] + '장 ' + shortRef[3] + '절부터 표시합니다.', 'success');
-          return;
+        const ch = koToNum(shortRef[2]);
+        const vs = koToNum(shortRef[3]);
+        if (ch > 0 && vs > 0) {
+          const key = bookResult.abbrev + ch + ':' + vs;
+          const idx = bibleKeys.indexOf(key);
+          if (idx !== -1) {
+            currentStart = idx;
+            renderVerses(idx, false);
+            const label = ABBREV_TO_FULL[bookResult.abbrev] || bookResult.matched;
+            setStatus(label + ' ' + ch + '장 ' + vs + '절부터 표시합니다.', 'success');
+            return;
+          }
         }
       }
     }
