@@ -233,6 +233,20 @@
 
     #loadMoreBtn:active { background: #30363d; }
 
+    .back-btn {
+      display: block;
+      width: 100%;
+      padding: 12px 16px;
+      background: #21262d;
+      border: none;
+      border-bottom: 1px solid #30363d;
+      color: #f0a500;
+      font-size: 0.9rem;
+      text-align: left;
+      cursor: pointer;
+    }
+    .back-btn:active { background: #30363d; }
+
     .load-prev-btn {
       display: block;
       width: 100%;
@@ -480,6 +494,7 @@
   let currentStart = 0;
   let nextStart = 0;
   let topStart = 0;
+  let savedResults = null;
   const PAGE_SIZE = 40;
 
   let isListening = false;
@@ -747,9 +762,12 @@
         gotoBtn.className = 'goto-btn';
         gotoBtn.textContent = '이동';
         gotoBtn.onclick = () => {
+          const container = document.getElementById('versesContainer');
+          savedResults = { html: container.innerHTML, scrollTop: container.scrollTop, status: document.getElementById('statusBar').textContent };
           const idx = bibleKeys.indexOf(key);
           const bookResult = findBook(abbr) || { abbrev: abbr, matched: abbr };
           showVerse(idx, bookResult, ch, vs);
+          addBackButton();
         };
         div.appendChild(gotoBtn);
 
@@ -1102,6 +1120,25 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
   function loadMore() {
     renderVerses(nextStart, true);
     document.getElementById('versesContainer').scrollBy({ top: 100, behavior: 'smooth' });
+  }
+
+  function addBackButton() {
+    const container = document.getElementById('versesContainer');
+    const btn = document.createElement('button');
+    btn.id = 'backBtn';
+    btn.className = 'back-btn';
+    btn.textContent = '← 검색 결과로';
+    btn.onclick = goBack;
+    container.insertBefore(btn, container.firstChild);
+  }
+
+  function goBack() {
+    if (!savedResults) return;
+    const container = document.getElementById('versesContainer');
+    container.innerHTML = savedResults.html;
+    container.scrollTop = savedResults.scrollTop;
+    setStatus(savedResults.status, 'success');
+    savedResults = null;
   }
 
   function loadPrev() {
