@@ -814,7 +814,7 @@
 
     // 3. 붙여쓰기: "창일일" / "갈오일"
     const koNums = '일이삼사오육칠팔구십백';
-    const stuck = text.match(new RegExp('^([가-힣]+)\\s*([' + koNums + '\\d]+)$'));
+    const stuck = text.match(new RegExp('^([가-힣]+?)\\s*([' + koNums + '\\d]+)$'));
     if (stuck) {
       const bookResult = findBook(stuck[1]);
       if (bookResult) {
