@@ -145,17 +145,27 @@
       50% { transform: scale(1.12); }
     }
 
-    #searchBtn {
-      height: 48px;
-      padding: 0 16px;
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      padding: 8px 16px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+    }
+    .action-btn {
+      flex: 1;
+      height: 44px;
       border-radius: 8px;
-      background: #238636;
       border: none;
       color: white;
       font-size: 0.95rem;
       cursor: pointer;
-      flex-shrink: 0;
+      font-weight: 600;
     }
+    .verse-btn { background: #1f6feb; }
+    .verse-btn:active { background: #1158c7; }
+    .search-btn { background: #238636; }
+    .search-btn:active { background: #1a6427; }
 
     .status-bar {
       padding: 8px 16px;
@@ -311,8 +321,11 @@
 
 <div class="search-bar">
   <button id="micBtn" onclick="toggleListening()" title="음성 입력">🎤</button>
-  <input id="textInput" type="text" placeholder="갈 5장 1절 / 창 1장 1절 / 태초에 하나님이" onkeydown="if(event.key==='Enter')searchVerse()">
-  <button id="searchBtn" onclick="searchVerse()">이동</button>
+  <input id="textInput" type="text" placeholder="갈 5장 1절 / 갈5:1 / 갈오일 / 믿음 소망 사랑" onkeydown="if(event.key==='Enter')goToVerse()">
+</div>
+<div class="btn-row">
+  <button class="action-btn verse-btn" onclick="goToVerse()">📖 구절 이동</button>
+  <button class="action-btn search-btn" onclick="searchBible()">🔍 성경 검색</button>
 </div>
 
 <div class="copy-bar" id="copyBar">
@@ -764,86 +777,103 @@
     }
   }
 
-  async function searchVerse(text) {
+  function tryVerseKey(bookResult, ch, vs) {
+    if (!bookResult || ch <= 0 || vs <= 0) return -1;
+    return bibleKeys.indexOf(bookResult.abbrev + ch + ':' + vs);
+  }
+
+  function goToVerse(text) {
     text = text || document.getElementById('textInput').value.trim();
     if (!text) return;
+    if (!bibleKeys.length) { setStatus('데이터 로딩 중입니다.', 'error'); return; }
+
     text = convertKoreanNumbers(text);
     document.getElementById('textInput').value = text;
 
-    if (!bibleKeys.length) { setStatus('데이터 로딩 중입니다. 잠시 후 다시 시도해주세요.', 'error'); return; }
+    // 1. 장/절 형식: "갈 5장 1절"
+    const hasJangJeol = /\d+\s*[장편]/.test(text) && /\d+\s*절/.test(text);
+    if (hasJangJeol) {
+      const bookResult = findBook(text);
+      if (bookResult) {
+        const chM = text.match(/(\d+)\s*[장편]/);
+        const vsM = text.match(/(\d+)\s*절/);
+        if (chM && vsM) {
+          const idx = tryVerseKey(bookResult, parseInt(chM[1]), parseInt(vsM[1]));
+          if (idx !== -1) { showVerse(idx, bookResult, chM[1], vsM[1]); return; }
+        }
+      }
+    }
 
-    // "창 5 1" / "갈5:1" / "갈 오 일" 단축 형식 처리
-    const numPat = '([일이삼사오육칠팔구백십\\d]+)';
-    const shortRef = text.match(new RegExp('^([가-힣]+)\\s*' + numPat + '[:\\s]\\s*' + numPat + '$'));
+    // 2. 단축 형식: "갈 5 1" / "갈5:1" / "갈 오 일"
+    const koN = '[일이삼사오육칠팔구백십\\d]+';
+    const shortRef = text.match(new RegExp('^([가-힣]+)\\s*(' + koN + ')[:\\s]\\s*(' + koN + ')$'));
     if (shortRef) {
       const bookResult = findBook(shortRef[1]);
+      const ch = koToNum(shortRef[2]), vs = koToNum(shortRef[3]);
+      const idx = tryVerseKey(bookResult, ch, vs);
+      if (idx !== -1) { showVerse(idx, bookResult, ch, vs); return; }
+    }
+
+    // 3. 붙여쓰기: "창일일" / "갈오일"
+    const koNums = '일이삼사오육칠팔구십백';
+    const stuck = text.match(new RegExp('^([가-힣]+)([' + koNums + '\\d]+)$'));
+    if (stuck) {
+      const bookResult = findBook(stuck[1]);
       if (bookResult) {
-        const ch = koToNum(shortRef[2]);
-        const vs = koToNum(shortRef[3]);
-        if (ch > 0 && vs > 0) {
-          const key = bookResult.abbrev + ch + ':' + vs;
-          const idx = bibleKeys.indexOf(key);
-          if (idx !== -1) {
-            currentStart = idx;
-            renderVerses(idx, false);
-            const label = ABBREV_TO_FULL[bookResult.abbrev] || bookResult.matched;
-            setStatus(label + ' ' + ch + '장 ' + vs + '절부터 표시합니다.', 'success');
-            return;
-          }
+        const numStr = stuck[2];
+        for (let i = 1; i < numStr.length; i++) {
+          const ch = koToNum(numStr.slice(0, i));
+          const vs = koToNum(numStr.slice(i));
+          const idx = tryVerseKey(bookResult, ch, vs);
+          if (idx !== -1) { showVerse(idx, bookResult, ch, vs); return; }
         }
       }
     }
 
-    // 장/절 패턴 없으면 자연어 or 키워드 검색
-    const hasVerseRef = /\d+\s*[장편]/.test(text) && /\d+\s*절/.test(text);
-    if (!hasVerseRef) {
-      const geminiKey = localStorage.getItem('geminiKey');
-      if (geminiKey) {
-        setStatus('AI 분석 중...⏳');
-        const result = await searchWithGemini(text);
-        if (result) {
-          if (result.book && result.chapter && result.verse) {
-            const key = result.book + result.chapter + ':' + result.verse;
-            const idx = bibleKeys.indexOf(key);
-            if (idx !== -1) {
-              currentStart = idx;
-              renderVerses(idx, false);
-              setStatus('AI 검색: ' + text + ' <span class="ai-badge">AI</span>', 'success');
-              return;
-            }
-          }
-          if (result.keywords && result.keywords.length > 0) {
-            searchKeyword(result.keywords, true);
-            return;
-          }
-        }
-      }
-      const words = text.trim().split(/\s+/).filter(w => w.length > 0);
-      searchKeyword(words, false);
-      return;
-    }
+    setStatus('"' + text + '" 구절을 찾지 못했습니다. 예) 갈 5장 1절 / 갈5:1 / 갈오일', 'error');
+  }
 
-    const bookResult = findBook(text);
-    if (!bookResult) { setStatus('"' + text + '"에서 책 이름을 찾지 못했습니다.', 'error'); return; }
-
-    const { abbrev, matched, fuzzy } = bookResult;
-
-    const chMatch = text.match(/(\d+)\s*[장편]/);
-    const vsMatch = text.match(/(\d+)\s*절/);
-
-    if (!chMatch || !vsMatch) { setStatus('장과 절 번호를 인식하지 못했습니다.', 'error'); return; }
-
-    const key = abbrev + chMatch[1] + ':' + vsMatch[1];
-    const idx = bibleKeys.indexOf(key);
-
-    if (idx === -1) { setStatus('"' + key + '" 구절을 찾을 수 없습니다.', 'error'); return; }
-
+  function showVerse(idx, bookResult, ch, vs) {
     currentStart = idx;
     renderVerses(idx, false);
-    const label = ABBREV_TO_FULL[abbrev] || matched;
-    const fuzzyNote = fuzzy ? ' (유사 검색)' : '';
-    setStatus(label + ' ' + chMatch[1] + '장 ' + vsMatch[1] + '절부터 표시합니다.' + fuzzyNote, 'success');
+    const label = ABBREV_TO_FULL[bookResult.abbrev] || bookResult.matched;
+    setStatus(label + ' ' + ch + '장 ' + vs + '절부터 표시합니다.', 'success');
   }
+
+  async function searchBible(text) {
+    text = text || document.getElementById('textInput').value.trim();
+    if (!text) return;
+    if (!bibleKeys.length) { setStatus('데이터 로딩 중입니다.', 'error'); return; }
+
+    const geminiKey = localStorage.getItem('geminiKey');
+    if (geminiKey) {
+      setStatus('AI 분석 중...⏳');
+      const result = await searchWithGemini(text);
+      if (result) {
+        if (result.book && result.chapter && result.verse) {
+          const bookResult = { abbrev: result.book, matched: result.book };
+          const idx = tryVerseKey(bookResult, result.chapter, result.verse);
+          if (idx !== -1) { showVerse(idx, bookResult, result.chapter, result.verse); return; }
+        }
+        if (result.keywords && result.keywords.length > 0) {
+          searchKeyword(result.keywords, true);
+          return;
+        }
+      }
+    }
+    const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+    searchKeyword(words, false);
+  }
+
+  async function searchVerse(text) {
+    // 음성 입력용: 구절 형식이면 이동, 아니면 검색
+    text = text || document.getElementById('textInput').value.trim();
+    if (!text) return;
+    text = convertKoreanNumbers(text);
+    const hasVerseRef = /\d+\s*[장편]/.test(text) && /\d+\s*절/.test(text);
+    if (hasVerseRef) { goToVerse(text); } else { searchBible(text); }
+  }
+
 
   function renderVerses(startIdx, append) {
     const container = document.getElementById('versesContainer');
