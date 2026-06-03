@@ -1,4 +1,4 @@
-const CACHE = 'bible-v44';
+const CACHE = 'bible-v45';
 const ASSETS = [
   '/bible/',
   '/bible/index.html',

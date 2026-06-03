@@ -766,16 +766,16 @@
   async function searchWithGemini(query) {
     const key = localStorage.getItem('geminiKey');
     if (!key) return null;
-    const prompt = `너는 성경 전문가야. 아래 검색어를 분석해서 JSON만 반환해 (설명 없이).
+    const prompt = `성경 전문가로서 검색어를 분석해 JSON만 반환해. 마크다운 없이 순수 JSON만.
 
 검색어: "${query}"
 
-규칙:
-1. 특정 인물/비유/사건/설교에 관한 질문이면 → results 배열에 관련 성경 위치 모두 반환 (여러 복음서에 나오면 다 포함). 예) 오병이어→[마14:13,막6:30,눅9:10,요6:1], 탕자의 비유→[눅15:11], 산상수훈→[마5:1], 므두셀라의 나이→[창5:27]
-2. 키워드 검색이면 → keywords 배열에 성경 본문에 실제 나올 법한 핵심 명사만 (조사/동사 제거, 2자 이상, 인명은 그대로)
-3. book 약어: 창/출/레/민/신/수/삿/룻/삼상/삼하/왕상/왕하/대상/대하/스/느/에/욥/시/잠/전/아/사/렘/애/겔/단/호/욜/암/옵/욘/미/나/합/습/학/슥/말/마/막/눅/요/행/롬/고전/고후/갈/엡/빌/골/살전/살후/딤전/딤후/딛/몬/히/약/벧전/벧후/요일/요이/요삼/유/계
+- 특정 사건/비유/인물이면 results에 성경 위치 목록 (여러 곳이면 모두):
+  {"keywords":[],"results":[{"book":"마","chapter":14,"verse":13},{"book":"막","chapter":6,"verse":30}]}
+- 키워드 검색이면 keywords에 핵심 명사만 (조사 제거):
+  {"keywords":["믿음","소망"],"results":[]}
 
-{"keywords":[],"results":[]}`;
+book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 왕하 대상 대하 스 느 에 욥 시 잠 전 아 사 렘 애 겔 단 호 욜 암 옵 욘 미 나 합 습 학 슥 말 마 막 눅 요 행 롬 고전 고후 갈 엡 빌 골 살전 살후 딤전 딤후 딛 몬 히 약 벧전 벧후 요일 요이 요삼 유 계`;
     try {
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${key}`,
@@ -794,7 +794,7 @@
       const data = await res.json();
       const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
       const m = txt.match(/\{[\s\S]*\}/);
-      if (!m) return null;
+      if (!m) { setStatus('AI 응답을 파싱하지 못했습니다.', 'error'); return null; }
       return JSON.parse(m[0]);
     } catch (e) {
       setStatus('네트워크 오류 또는 API 키를 확인하세요.', 'error');
