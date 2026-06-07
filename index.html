@@ -153,7 +153,6 @@
     #textInput {
       flex: 1;
       min-width: 0;
-      max-width: 2000px;
       background: #0d1117;
       border: 1px solid #30363d;
       border-radius: 8px;
@@ -161,17 +160,27 @@
       font-size: 1rem;
       padding: 8px 12px;
       outline: none;
-      transition: max-width 0.3s ease, opacity 0.25s ease, padding 0.3s ease;
     }
 
     #textInput:focus { border-color: #f0a500; }
     #textInput::placeholder { color: #484f58; }
 
     .mic-group {
+      flex: 1;
       display: flex;
-      gap: 6px;
+      justify-content: space-around;
       align-items: center;
-      flex-shrink: 0;
+    }
+
+    .mic-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+    .mic-label {
+      font-size: 0.62rem;
+      color: #8b949e;
     }
 
     @keyframes pulse {
@@ -224,12 +233,6 @@
     }
     body.reading-mode .settings-panel {
       display: none !important;
-    }
-    body.reading-mode #textInput {
-      max-width: 0;
-      opacity: 0;
-      padding-left: 0;
-      padding-right: 0;
     }
     body.reading-mode .status-bar {
       max-height: 0;
@@ -512,15 +515,24 @@
       <button class="settings-adj-btn" onclick="adjustSetting('lh',1)">+</button>
     </div>
   </div>
-  <div class="settings-ver">AI 모델: gemini-2.5-flash-lite &nbsp;|&nbsp; 앱 버전: v4.5</div>
+  <div class="settings-ver">AI 모델: gemini-2.5-flash-lite &nbsp;|&nbsp; 앱 버전: v4.6</div>
 </div>
 
 <div class="search-bar">
   <input id="textInput" type="text" placeholder="갈5:1 / 갈오장일절 / 믿음 소망 사랑" onkeydown="if(event.key==='Enter')goToVerse()">
   <div class="mic-group">
-    <button class="mic-btn" id="micVerseBtn" onclick="toggleListening('verse')" title="구절 이동">🎤</button>
-    <button class="mic-btn" id="micKeywordBtn" onclick="toggleListening('keyword')" title="키워드 검색">🎤</button>
-    <button class="mic-btn" id="micAiBtn" onclick="toggleListening('ai')" title="AI 검색">🎤</button>
+    <div class="mic-wrap">
+      <button class="mic-btn" id="micVerseBtn" onclick="toggleListening('verse')" title="구절 이동">🎤</button>
+      <span class="mic-label">구절</span>
+    </div>
+    <div class="mic-wrap">
+      <button class="mic-btn" id="micKeywordBtn" onclick="toggleListening('keyword')" title="키워드 검색">🎤</button>
+      <span class="mic-label">키워드</span>
+    </div>
+    <div class="mic-wrap">
+      <button class="mic-btn" id="micAiBtn" onclick="toggleListening('ai')" title="AI 검색">🎤</button>
+      <span class="mic-label">AI</span>
+    </div>
   </div>
 </div>
 
