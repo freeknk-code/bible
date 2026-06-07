@@ -249,11 +249,25 @@
       line-height: var(--bible-lh);
       font-size: var(--bible-fs);
       border-bottom: 1px solid #1c2128;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      border-left: 3px solid transparent;
+      transition: background 0.1s;
     }
+    .verse-block:active { background: rgba(255,255,255,0.04); }
 
     .verse-block.highlight {
       background: rgba(240, 165, 0, 0.08);
       border-left: 3px solid #f0a500;
+    }
+
+    .verse-block.selected {
+      background: rgba(31, 111, 235, 0.12);
+      border-left: 3px solid #1f6feb;
+    }
+    .verse-block.selected.highlight {
+      background: rgba(31, 111, 235, 0.16);
     }
 
     .verse-num {
@@ -385,20 +399,22 @@
       background: #1c2128;
       border-bottom: 1px solid #30363d;
       font-size: 0.82rem;
-      color: #3fb950;
+      color: #8b949e;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
     }
     .copy-bar.visible { display: flex; }
+    .copy-bar-btns { display: flex; gap: 8px; }
     .copy-bar button {
-      background: none;
-      border: 1px solid #3fb950;
-      color: #3fb950;
-      border-radius: 4px;
-      padding: 2px 10px;
-      font-size: 0.78rem;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 0.82rem;
       cursor: pointer;
     }
+    #clearBtn { background: #21262d; color: #8b949e; }
+    #copyBtn  { background: #1f6feb; color: white; font-weight: 600; }
 
     .result-count {
       padding: 6px 16px;
@@ -477,7 +493,7 @@
       <button class="settings-adj-btn" onclick="adjustSetting('lh',1)">+</button>
     </div>
   </div>
-  <div class="settings-ver">AI 모델: gemini-2.5-flash-lite &nbsp;|&nbsp; 앱 버전: v4.2</div>
+  <div class="settings-ver">AI 모델: gemini-2.5-flash-lite &nbsp;|&nbsp; 앱 버전: v4.3</div>
 </div>
 
 <div class="search-bar">
@@ -499,8 +515,11 @@
 </div>
 
 <div class="copy-bar" id="copyBar">
-  <span id="copyCount">0절 복사됨</span>
-  <button onclick="clearCopied()">초기화</button>
+  <span id="copyCount">0절 선택됨</span>
+  <div class="copy-bar-btns">
+    <button id="clearBtn" onclick="clearCopied()">해제</button>
+    <button id="copyBtn" onclick="copySelected()">복사</button>
+  </div>
 </div>
 <div class="status-bar" id="statusBar">성경 데이터 불러오는 중...</div>
 
@@ -602,7 +621,7 @@
   let isListening = false;
   let recognition = null;
   let micReady = false;
-  let copiedVerses = [];
+  let selectedKeys = new Set();
 
   // ── Display settings ──
   const SETTINGS_CFG = {
@@ -676,21 +695,44 @@
   function updateCopyBar() {
     const bar = document.getElementById('copyBar');
     const count = document.getElementById('copyCount');
-    if (copiedVerses.length === 0) {
+    if (selectedKeys.size === 0) {
       bar.classList.remove('visible');
     } else {
       bar.classList.add('visible');
-      count.textContent = copiedVerses.length + '절 복사됨';
+      count.textContent = selectedKeys.size + '절 선택됨';
     }
   }
 
-  function clearCopied() {
-    copiedVerses = [];
-    document.querySelectorAll('.copy-btn.copied').forEach(btn => {
-      btn.textContent = '복사';
-      btn.classList.remove('copied');
-    });
+  function toggleVerse(key, el) {
+    if (selectedKeys.has(key)) {
+      selectedKeys.delete(key);
+      el.classList.remove('selected');
+    } else {
+      selectedKeys.add(key);
+      el.classList.add('selected');
+    }
     updateCopyBar();
+  }
+
+  function clearCopied() {
+    selectedKeys.clear();
+    document.querySelectorAll('.verse-block.selected').forEach(el => el.classList.remove('selected'));
+    updateCopyBar();
+  }
+
+  function copySelected() {
+    if (selectedKeys.size === 0) return;
+    const sorted = bibleKeys.filter(k => selectedKeys.has(k));
+    const text = sorted.map(k => {
+      const m = k.match(/^([가-힣]+)(\d+):(\d+)$/);
+      if (!m) return '';
+      const [, abbr, ch, vs] = m;
+      return (ABBREV_TO_FULL[abbr] || abbr) + ' ' + ch + '장 ' + vs + '절\n' + bibleData[k].trim();
+    }).join('\n\n');
+    navigator.clipboard.writeText(text);
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '✓ 완료';
+    setTimeout(() => { btn.textContent = '복사'; }, 1500);
   }
 
   // Pre-request mic permission so Chrome doesn't ask every time
@@ -862,31 +904,12 @@
     return result;
   }
 
-  function makeCopyBtn(key, verseText) {
-    const m = key.match(/^([가-힣]+)(\d+):(\d+)$/);
-    if (!m) return document.createElement('span');
-    const [, abbr, ch, vs] = m;
-    const ref = (ABBREV_TO_FULL[abbr] || abbr) + ' ' + ch + '장 ' + vs + '절';
-    const entry = ref + '\n' + verseText.trim();
-    const btn = document.createElement('button');
-    btn.className = 'copy-btn';
-    btn.textContent = '복사';
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      if (btn.classList.contains('copied')) {
-        // 이미 추가된 경우 제거
-        copiedVerses = copiedVerses.filter(v => v !== entry);
-        btn.textContent = '복사';
-        btn.classList.remove('copied');
-      } else {
-        copiedVerses.push(entry);
-        btn.textContent = '✓';
-        btn.classList.add('copied');
-      }
-      navigator.clipboard.writeText(copiedVerses.join('\n\n'));
-      updateCopyBar();
+  function applyVerseOnclick(el, key) {
+    el.onclick = (e) => {
+      if (e.target.closest('button')) return;
+      toggleVerse(key, el);
     };
-    return btn;
+    if (selectedKeys.has(key)) el.classList.add('selected');
   }
 
   function searchKeyword(words, isAI = false, addToHistory = true) {
@@ -926,9 +949,7 @@
 
         const div = document.createElement('div');
         div.className = 'verse-block';
-
-        const copyBtn = makeCopyBtn(key, verseText);
-        div.appendChild(copyBtn);
+        applyVerseOnclick(div, key);
 
         const gotoBtn = document.createElement('button');
         gotoBtn.className = 'goto-btn';
@@ -1181,8 +1202,8 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
 
       const div = document.createElement('div');
       div.className = 'verse-block' + (i === highlightIdx ? ' highlight' : '');
+      applyVerseOnclick(div, key);
 
-      div.appendChild(makeCopyBtn(key, text));
       const num = document.createElement('span');
       num.className = 'verse-num';
       num.textContent = vs;
@@ -1274,7 +1295,7 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
             }
             const div = document.createElement('div');
             div.className = 'verse-block';
-            div.appendChild(makeCopyBtn(key, bibleData[key]));
+            applyVerseOnclick(div, key);
             const num = document.createElement('span');
             num.className = 'verse-num';
             num.textContent = vs;
@@ -1359,9 +1380,7 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
 
       const div = document.createElement('div');
       div.className = 'verse-block' + (i === currentStart && !append ? ' highlight' : '');
-
-      const copyBtn = makeCopyBtn(key, text);
-      div.appendChild(copyBtn);
+      applyVerseOnclick(div, key);
 
       const num = document.createElement('span');
       num.className = 'verse-num';
@@ -1432,7 +1451,7 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
       }
       const div = document.createElement('div');
       div.className = 'verse-block';
-      div.appendChild(makeCopyBtn(key, text));
+      applyVerseOnclick(div, key);
       const num = document.createElement('span');
       num.className = 'verse-num';
       num.textContent = vs;
