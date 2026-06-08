@@ -151,41 +151,30 @@
     #textInput::placeholder { color: #484f58; }
 
     .mic-group {
-      flex: 1;
+      flex: 0 0 auto;
       display: flex;
-      justify-content: space-around;
       align-items: center;
-    }
-
-    .mic-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 3px;
-    }
-    .mic-label {
-      font-size: 0.75rem;
-      color: #8b949e;
+      gap: 6px;
     }
 
     @keyframes pulse {
       0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.12); }
+      50% { transform: scale(1.08); }
     }
 
     .mic-btn {
-      width: 36px;
       height: 36px;
-      border-radius: 50%;
+      padding: 0 13px;
+      border-radius: 18px;
       border: none;
       cursor: pointer;
-      font-size: 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-      flex-shrink: 0;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: white;
+      white-space: nowrap;
+      transition: opacity 0.15s;
     }
+    .mic-btn:active { opacity: 0.75; }
     #micVerseBtn   { background: #1f6feb; }
     #micKeywordBtn { background: #238636; }
     #micAiBtn      { background: #7c3aed; }
@@ -598,18 +587,9 @@
 <div class="search-bar">
   <input id="textInput" type="text" placeholder="갈5:1 / 갈오장일절 / 믿음 소망 사랑" onkeydown="if(event.key==='Enter')goToVerse()">
   <div class="mic-group">
-    <div class="mic-wrap">
-      <button class="mic-btn" id="micVerseBtn" onclick="toggleListening('verse')" title="구절 이동">🎤</button>
-      <span class="mic-label">구절</span>
-    </div>
-    <div class="mic-wrap">
-      <button class="mic-btn" id="micKeywordBtn" onclick="toggleListening('keyword')" title="키워드 검색">🎤</button>
-      <span class="mic-label">키워드</span>
-    </div>
-    <div class="mic-wrap">
-      <button class="mic-btn" id="micAiBtn" onclick="toggleListening('ai')" title="AI 검색">🎤</button>
-      <span class="mic-label">AI</span>
-    </div>
+    <button class="mic-btn" id="micVerseBtn" onclick="toggleListening('verse')">구절</button>
+    <button class="mic-btn" id="micKeywordBtn" onclick="toggleListening('keyword')">키워드</button>
+    <button class="mic-btn" id="micAiBtn" onclick="toggleListening('ai')">AI</button>
   </div>
   <button id="moreBtn" onclick="toggleSettings()" title="더보기">⋮</button>
 </div>
@@ -985,7 +965,7 @@
     recognition.onstart = () => {
       isListening = true;
       activeMicBtn().classList.add('listening');
-      activeMicBtn().textContent = '⏹';
+      const _btn = activeMicBtn(); _btn.dataset.orig = _btn.textContent; _btn.textContent = '⏹';
       const modeMsg = listenMode === 'verse' ? '구절을 말씀해주세요' : listenMode === 'keyword' ? '검색어를 말씀해주세요' : 'AI 검색어를 말씀해주세요';
       setStatus('듣고 있습니다... ' + modeMsg);
     };
@@ -1002,14 +982,12 @@
 
     recognition.onend = () => {
       isListening = false;
-      activeMicBtn().classList.remove('listening');
-      activeMicBtn().textContent = '🎤';
+      const _b1 = activeMicBtn(); _b1.classList.remove('listening'); _b1.textContent = _b1.dataset.orig || _b1.textContent;
     };
 
     recognition.onerror = (e) => {
       isListening = false;
-      activeMicBtn().classList.remove('listening');
-      activeMicBtn().textContent = '🎤';
+      const _b2 = activeMicBtn(); _b2.classList.remove('listening'); _b2.textContent = _b2.dataset.orig || _b2.textContent;
       setStatus('음성 인식 오류: ' + e.error, 'error');
     };
 
