@@ -38,6 +38,7 @@
       padding: 0 4px;
       line-height: 1;
       flex-shrink: 0;
+      margin-left: 8px;
     }
     #moreBtn:active { color: #c9d1d9; }
     .settings-panel {
@@ -324,14 +325,16 @@
       border: none;
       color: #c9d1d9;
       font-size: 1rem;
-      padding: 16px;
+      padding: 14px 16px;
       text-align: left;
       cursor: pointer;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      box-sizing: border-box;
     }
     .acc-header:active { background: #21262d; }
+    .acc-right { display: flex; align-items: center; gap: 10px; }
     .acc-arrow { color: #8b949e; font-size: 0.85rem; }
     .acc-body { background: #0d1117; }
 
@@ -581,14 +584,14 @@
       <button class="settings-adj-btn" onclick="adjustSetting('lh',1)">+</button>
     </div>
   </div>
-  <div class="settings-ver">AI 모델: gemini-2.5-flash-lite &nbsp;|&nbsp; 앱 버전: v5.1</div>
+  <div class="settings-ver">AI 모델: gemini-2.5-flash-lite &nbsp;|&nbsp; 앱 버전: v5.2</div>
 </div>
 
 <div class="search-bar">
   <input id="textInput" type="text" placeholder="갈5:1 / 갈오장일절 / 믿음 소망 사랑" onkeydown="if(event.key==='Enter')goToVerse()">
   <div class="mic-group">
-    <button class="mic-btn" id="micVerseBtn" onclick="toggleListening('verse')">구절</button>
-    <button class="mic-btn" id="micKeywordBtn" onclick="toggleListening('keyword')">키워드</button>
+    <button class="mic-btn" id="micVerseBtn" onclick="toggleListening('verse')">장절</button>
+    <button class="mic-btn" id="micKeywordBtn" onclick="toggleListening('keyword')">검색</button>
     <button class="mic-btn" id="micAiBtn" onclick="toggleListening('ai')">AI</button>
   </div>
   <button id="moreBtn" onclick="toggleSettings()" title="더보기">⋮</button>
@@ -966,7 +969,7 @@
       isListening = true;
       activeMicBtn().classList.add('listening');
       const _btn = activeMicBtn(); _btn.dataset.orig = _btn.textContent; _btn.textContent = '⏹';
-      const modeMsg = listenMode === 'verse' ? '구절을 말씀해주세요' : listenMode === 'keyword' ? '검색어를 말씀해주세요' : 'AI 검색어를 말씀해주세요';
+      const modeMsg = listenMode === 'verse' ? '장절을 말씀해주세요' : listenMode === 'keyword' ? '검색어를 말씀해주세요' : 'AI 검색어를 말씀해주세요';
       setStatus('듣고 있습니다... ' + modeMsg);
     };
 
@@ -1451,9 +1454,26 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
           const item = document.createElement('div');
           item.className = 'acc-item';
 
-          const header = document.createElement('button');
+          const header = document.createElement('div');
           header.className = 'acc-header';
-          header.innerHTML = `<span>${label} ${chapter}장 ${verse}절</span><span class="acc-arrow">▼</span>`;
+          const titleSpan = document.createElement('span');
+          titleSpan.textContent = `${label} ${chapter}장 ${verse}절`;
+          const rightGroup = document.createElement('div');
+          rightGroup.className = 'acc-right';
+          const gotoBtn = document.createElement('button');
+          gotoBtn.className = 'goto-btn';
+          gotoBtn.textContent = '이동';
+          gotoBtn.onclick = (e) => {
+            e.stopPropagation();
+            showVerse(idx, bookResult, chapter, verse);
+          };
+          const arrow = document.createElement('span');
+          arrow.className = 'acc-arrow';
+          arrow.textContent = '▼';
+          rightGroup.appendChild(gotoBtn);
+          rightGroup.appendChild(arrow);
+          header.appendChild(titleSpan);
+          header.appendChild(rightGroup);
 
           const body = document.createElement('div');
           body.className = 'acc-body';
@@ -1486,10 +1506,11 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
             body.appendChild(div);
           }
 
-          header.onclick = () => {
+          header.onclick = (e) => {
+            if (e.target.closest('.goto-btn')) return;
             const open = body.style.display !== 'none';
             body.style.display = open ? 'none' : 'block';
-            header.querySelector('.acc-arrow').textContent = open ? '▼' : '▲';
+            arrow.textContent = open ? '▼' : '▲';
           };
 
           item.appendChild(header);
