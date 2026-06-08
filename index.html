@@ -447,7 +447,105 @@
       color: #f0a500;
       text-align: center;
       flex: 1;
+      cursor: pointer;
     }
+    .title-arrow { font-size: 0.7rem; color: #8b949e; margin-left: 3px; }
+
+    /* ── Book/Chapter Picker ── */
+    .picker-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 300;
+      display: none;
+      align-items: flex-end;
+    }
+    .picker-overlay.open { display: flex; }
+    .picker-sheet {
+      width: 100%;
+      max-height: 78vh;
+      background: #161b22;
+      border-radius: 20px 20px 0 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .picker-header {
+      display: flex;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid #30363d;
+      gap: 10px;
+    }
+    .picker-back {
+      background: none;
+      border: none;
+      color: #8b949e;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0 4px;
+      display: none;
+    }
+    .picker-header-title {
+      flex: 1;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #f0a500;
+    }
+    .picker-close {
+      background: none;
+      border: none;
+      color: #8b949e;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .picker-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px 24px;
+    }
+    .picker-section-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #8b949e;
+      letter-spacing: 0.12em;
+      padding: 10px 2px 6px;
+    }
+    .book-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      margin-bottom: 8px;
+    }
+    .book-btn {
+      padding: 10px 4px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      color: #c9d1d9;
+      font-size: 0.78rem;
+      cursor: pointer;
+      text-align: center;
+      line-height: 1.3;
+    }
+    .book-btn:active { background: #30363d; color: #f0a500; }
+    .chapter-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 7px;
+    }
+    .ch-btn {
+      padding: 12px 4px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      color: #c9d1d9;
+      font-size: 1rem;
+      cursor: pointer;
+      text-align: center;
+    }
+    .ch-btn:active { background: #1f6feb; color: white; }
   </style>
 </head>
 <body>
@@ -482,7 +580,7 @@
       <button class="settings-adj-btn" onclick="adjustSetting('lh',1)">+</button>
     </div>
   </div>
-  <div class="settings-ver">AI 모델: gemini-2.5-flash-lite &nbsp;|&nbsp; 앱 버전: v4.9</div>
+  <div class="settings-ver">AI 모델: gemini-2.5-flash-lite &nbsp;|&nbsp; 앱 버전: v5.0</div>
 </div>
 
 <div class="search-bar">
@@ -522,6 +620,16 @@
   </div>
 </div>
 
+<div class="picker-overlay" id="bookPicker">
+  <div class="picker-sheet">
+    <div class="picker-header">
+      <button class="picker-back" id="pickerBack">‹</button>
+      <span class="picker-header-title" id="pickerTitle">성경 책 선택</span>
+      <button class="picker-close" onclick="closePicker()">✕</button>
+    </div>
+    <div class="picker-body" id="pickerBody"></div>
+  </div>
+</div>
 
 <script>
   const BOOK_MAP = {
@@ -599,6 +707,70 @@
   Object.entries(BOOK_MAP).forEach(([full, abbr]) => {
     if (!ABBREV_TO_FULL[abbr]) ABBREV_TO_FULL[abbr] = full;
   });
+
+  const OT_BOOKS = ['창','출','레','민','신','수','삿','룻','삼상','삼하','왕상','왕하','대상','대하','스','느','에','욥','시','잠','전','아','사','렘','애','겔','단','호','욜','암','옵','욘','미','나','합','습','학','슥','말'];
+  const NT_BOOKS = ['마','막','눅','요','행','롬','고전','고후','갈','엡','빌','골','살전','살후','딤전','딤후','딛','몬','히','약','벧전','벧후','요일','요이','요삼','유','계'];
+  const CHAPTER_COUNTS = {
+    '창':50,'출':40,'레':27,'민':36,'신':34,'수':24,'삿':21,'룻':4,
+    '삼상':31,'삼하':24,'왕상':22,'왕하':25,'대상':29,'대하':36,
+    '스':10,'느':13,'에':10,'욥':42,'시':150,'잠':31,'전':12,'아':8,
+    '사':66,'렘':52,'애':5,'겔':48,'단':12,
+    '호':14,'욜':3,'암':9,'옵':1,'욘':4,'미':7,'나':3,'합':3,'습':3,'학':2,'슥':14,'말':4,
+    '마':28,'막':16,'눅':24,'요':21,'행':28,'롬':16,'고전':16,'고후':13,
+    '갈':6,'엡':6,'빌':4,'골':4,'살전':5,'살후':3,'딤전':6,'딤후':4,
+    '딛':3,'몬':1,'히':13,'약':5,'벧전':5,'벧후':3,'요일':5,'요이':1,'요삼':1,'유':1,'계':22
+  };
+
+  function openBookPicker() {
+    document.getElementById('bookPicker').classList.add('open');
+    renderBookList();
+  }
+  function closePicker() {
+    document.getElementById('bookPicker').classList.remove('open');
+  }
+  function renderBookList() {
+    document.getElementById('pickerTitle').textContent = '성경 책 선택';
+    document.getElementById('pickerBack').style.display = 'none';
+    document.getElementById('pickerBack').onclick = null;
+    const body = document.getElementById('pickerBody');
+    body.innerHTML = '';
+    [['구약', OT_BOOKS], ['신약', NT_BOOKS]].forEach(([label, books]) => {
+      const sec = document.createElement('div');
+      sec.className = 'picker-section-label';
+      sec.textContent = label;
+      body.appendChild(sec);
+      const grid = document.createElement('div');
+      grid.className = 'book-grid';
+      books.forEach(abbr => {
+        const btn = document.createElement('button');
+        btn.className = 'book-btn';
+        btn.textContent = ABBREV_TO_FULL[abbr] || abbr;
+        btn.onclick = () => renderChapterGrid(abbr);
+        grid.appendChild(btn);
+      });
+      body.appendChild(grid);
+    });
+  }
+  function renderChapterGrid(abbr) {
+    document.getElementById('pickerTitle').textContent = ABBREV_TO_FULL[abbr] || abbr;
+    const back = document.getElementById('pickerBack');
+    back.style.display = 'block';
+    back.onclick = renderBookList;
+    const body = document.getElementById('pickerBody');
+    body.innerHTML = '';
+    body.scrollTop = 0;
+    const count = CHAPTER_COUNTS[abbr] || 1;
+    const grid = document.createElement('div');
+    grid.className = 'chapter-grid';
+    for (let i = 1; i <= count; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'ch-btn';
+      btn.textContent = i;
+      btn.onclick = () => { closePicker(); showChapter(abbr, String(i), -1); };
+      grid.appendChild(btn);
+    }
+    body.appendChild(grid);
+  }
 
   let bibleData = {};
   let bibleKeys = [];
@@ -745,7 +917,15 @@
     .then(data => {
       bibleData = data;
       bibleKeys = Object.keys(data);
-      setStatus('준비됐습니다. 음성 또는 텍스트로 구절을 검색하세요.', '');
+      const last = localStorage.getItem('bibleLastChapter');
+      if (last) {
+        try {
+          const { abbr, ch } = JSON.parse(last);
+          showChapter(abbr, ch, -1, false);
+        } catch(e) { setStatus('준비됐습니다.', ''); }
+      } else {
+        setStatus('준비됐습니다. 음성 또는 텍스트로 구절을 검색하세요.', '');
+      }
     })
     .catch(() => setStatus('bible.json을 불러오지 못했습니다.', 'error'));
 
@@ -1163,7 +1343,8 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
 
     const title = document.createElement('span');
     title.className = 'chapter-nav-title';
-    title.textContent = (ABBREV_TO_FULL[abbr] || abbr) + ' ' + ch + '장';
+    title.innerHTML = (ABBREV_TO_FULL[abbr] || abbr) + ' ' + ch + '장 <span class="title-arrow">▾</span>';
+    title.onclick = () => openBookPicker();
     nav.appendChild(title);
 
     if (chEnd + 1 < bibleKeys.length) {
@@ -1209,6 +1390,7 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
     }
 
     currentViewState = { type: 'chapter', abbr, ch: String(ch), highlightIdx };
+    localStorage.setItem('bibleLastChapter', JSON.stringify({ abbr, ch: String(ch) }));
     setStatus('');
   }
 
