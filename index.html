@@ -447,9 +447,20 @@
       color: #f0a500;
       text-align: center;
       flex: 1;
-      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
     }
-    .title-arrow { font-size: 0.7rem; color: #8b949e; margin-left: 3px; }
+    .nav-book-name, .nav-ch-name {
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .nav-book-name:active, .nav-ch-name:active { background: rgba(240,165,0,0.15); }
+    .nav-sep { color: #484f58; font-weight: 400; }
+    .title-arrow { font-size: 0.7rem; color: #8b949e; margin-left: 2px; }
 
     /* ── Book/Chapter Picker ── */
     .picker-overlay {
@@ -580,7 +591,7 @@
       <button class="settings-adj-btn" onclick="adjustSetting('lh',1)">+</button>
     </div>
   </div>
-  <div class="settings-ver">AI 모델: gemini-2.5-flash-lite &nbsp;|&nbsp; 앱 버전: v5.0</div>
+  <div class="settings-ver">AI 모델: gemini-2.5-flash-lite &nbsp;|&nbsp; 앱 버전: v5.1</div>
 </div>
 
 <div class="search-bar">
@@ -724,6 +735,10 @@
   function openBookPicker() {
     document.getElementById('bookPicker').classList.add('open');
     renderBookList();
+  }
+  function openChapterPicker(abbr) {
+    document.getElementById('bookPicker').classList.add('open');
+    renderChapterGrid(abbr);
   }
   function closePicker() {
     document.getElementById('bookPicker').classList.remove('open');
@@ -1341,10 +1356,26 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
       nav.appendChild(document.createElement('span'));
     }
 
-    const title = document.createElement('span');
+    const title = document.createElement('div');
     title.className = 'chapter-nav-title';
-    title.innerHTML = (ABBREV_TO_FULL[abbr] || abbr) + ' ' + ch + '장 <span class="title-arrow">▾</span>';
-    title.onclick = () => openBookPicker();
+
+    const bookSpan = document.createElement('span');
+    bookSpan.className = 'nav-book-name';
+    bookSpan.textContent = ABBREV_TO_FULL[abbr] || abbr;
+    bookSpan.onclick = () => openBookPicker();
+
+    const sep = document.createElement('span');
+    sep.className = 'nav-sep';
+    sep.textContent = ' · ';
+
+    const chSpan = document.createElement('span');
+    chSpan.className = 'nav-ch-name';
+    chSpan.innerHTML = ch + '장<span class="title-arrow">▾</span>';
+    chSpan.onclick = () => openChapterPicker(abbr);
+
+    title.appendChild(bookSpan);
+    title.appendChild(sep);
+    title.appendChild(chSpan);
     nav.appendChild(title);
 
     if (chEnd + 1 < bibleKeys.length) {
