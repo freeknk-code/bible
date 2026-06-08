@@ -29,32 +29,17 @@
       flex-direction: column;
     }
 
-    header {
-      padding: 16px 20px;
-      background: #161b22;
-      border-bottom: 1px solid #30363d;
-      text-align: center;
-      position: relative;
-      max-height: 80px;
-      overflow: hidden;
-      transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease;
-    }
-    header h1 {
-      font-size: 1.2rem;
-      color: #f0a500;
-      letter-spacing: 0.05em;
-    }
-    #settingsBtn {
-      position: absolute;
-      right: 14px;
-      top: 50%;
-      transform: translateY(-50%);
+    #moreBtn {
       background: none;
       border: none;
-      font-size: 1.2rem;
+      color: #8b949e;
+      font-size: 1.4rem;
       cursor: pointer;
-      opacity: 0.6;
+      padding: 0 4px;
+      line-height: 1;
+      flex-shrink: 0;
     }
+    #moreBtn:active { color: #c9d1d9; }
     .settings-panel {
       background: #161b22;
       border-bottom: 1px solid #30363d;
@@ -225,12 +210,6 @@
     .status-bar.success { color: #3fb950; }
 
     /* ── 읽기 모드 (스크롤 내렸을 때) ── */
-    body.reading-mode header {
-      max-height: 0;
-      opacity: 0;
-      padding-top: 0;
-      padding-bottom: 0;
-    }
     body.reading-mode .settings-panel {
       display: none !important;
     }
@@ -481,10 +460,6 @@
 </head>
 <body>
 
-<header>
-  <h1>📖 성경 음성 검색 (개역개정)</h1>
-  <button id="settingsBtn" onclick="toggleSettings()" title="설정">⚙️</button>
-</header>
 <div class="settings-panel" id="settingsPanel">
   <div class="settings-row">
     <span class="settings-label">API 키</span>
@@ -515,7 +490,7 @@
       <button class="settings-adj-btn" onclick="adjustSetting('lh',1)">+</button>
     </div>
   </div>
-  <div class="settings-ver">AI 모델: gemini-2.5-flash-lite &nbsp;|&nbsp; 앱 버전: v4.7</div>
+  <div class="settings-ver">AI 모델: gemini-2.5-flash-lite &nbsp;|&nbsp; 앱 버전: v4.8</div>
 </div>
 
 <div class="search-bar">
@@ -534,6 +509,7 @@
       <span class="mic-label">AI</span>
     </div>
   </div>
+  <button id="moreBtn" onclick="toggleSettings()" title="더보기">⋮</button>
 </div>
 
 <div class="copy-bar" id="copyBar">
