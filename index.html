@@ -201,23 +201,11 @@
       background: #0d1117;
       min-height: 30px;
       text-align: center;
-      max-height: 60px;
-      overflow: hidden;
-      transition: max-height 0.2s ease, padding 0.2s ease, min-height 0.2s ease;
     }
 
     .status-bar.error { color: #f85149; }
     .status-bar.success { color: #3fb950; }
 
-    /* ── 읽기 모드 (스크롤 내렸을 때) ── */
-    body.reading-mode .settings-panel {
-      display: none !important;
-    }
-    body.reading-mode .status-bar {
-      max-height: 0;
-      padding: 0;
-      min-height: 0;
-    }
 
     .verses-container {
       flex: 1;
@@ -490,7 +478,7 @@
       <button class="settings-adj-btn" onclick="adjustSetting('lh',1)">+</button>
     </div>
   </div>
-  <div class="settings-ver">AI 모델: gemini-2.5-flash-lite &nbsp;|&nbsp; 앱 버전: v4.8</div>
+  <div class="settings-ver">AI 모델: gemini-2.5-flash-lite &nbsp;|&nbsp; 앱 버전: v4.9</div>
 </div>
 
 <div class="search-bar">
@@ -1217,7 +1205,6 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
     }
 
     currentViewState = { type: 'chapter', abbr, ch: String(ch), highlightIdx };
-    document.body.classList.remove('reading-mode');
     setStatus('');
   }
 
@@ -1465,16 +1452,6 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
     if (topStart === 0) prevBtn?.remove();
   }
 
-  // ── 읽기 모드: 스크롤하면 제목/입력창 숨김 ──
-  document.getElementById('versesContainer').addEventListener('scroll', () => {
-    const scrolled = document.getElementById('versesContainer').scrollTop > 80;
-    if (scrolled) {
-      document.body.classList.add('reading-mode');
-      document.getElementById('settingsPanel').classList.remove('open');
-    } else {
-      document.body.classList.remove('reading-mode');
-    }
-  });
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js');
