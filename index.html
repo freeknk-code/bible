@@ -1223,8 +1223,8 @@ book은 한글 약어만: 창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 �
       );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        if (err.error?.code === 429) setStatus('API 한도 초과. 잠시 후 다시 시도하세요.', 'error');
-        else setStatus('Gemini 오류: ' + (err.error?.message || res.status), 'error');
+        const msg = err.error?.message || res.status;
+        setStatus('Gemini 오류: ' + msg, 'error');
         return null;
       }
       const data = await res.json();
